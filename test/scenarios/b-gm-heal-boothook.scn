@@ -1,0 +1,19 @@
+# Task #131: MinUI.pak runs boot.d BEFORE the first nextui.elf of every boot, so the boot
+# hook healing the GM root entry makes "artifacts exist before every root scan" an invariant —
+# a partial card update can no longer hide the root row until the next full Lodor session.
+desc boot.d hook installs the Game Manager root entry before the first root scan
+invoke boothook
+config paired
+expect_exit 0
+expect_file Emus/tg5040/LODORGM.pak/launch.sh
+expect_file Roms/Game Manager (LODORGM)/Open Game Manager.gm
+expect_file Roms/Game Manager (LODORGM)/Game Manager (LODORGM).m3u
+# task #134 additions: pre-stage the LEGACY top-sorted folder + a user map.txt line;
+# the boot heal must migrate the old folder away, install the NBSP bottom-sort alias,
+# and keep the user line verbatim (merge, never clobber).
+sdfile+ Roms/0) Game Manager (LODORGM)/Open Game Manager.gm
+sdtext Roms/map.txt	Game Boy Advance (GBA)\tMy GBA Alias\n
+expect_file_absent Roms/0) Game Manager (LODORGM)
+expect_file_has Roms/map.txt	Game Manager (LODORGM)	 Game Manager
+expect_file_has Roms/map.txt	My GBA Alias
+expect_file_lines Roms/map.txt	2

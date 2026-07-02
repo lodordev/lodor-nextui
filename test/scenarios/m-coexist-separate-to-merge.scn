@@ -1,0 +1,9 @@
+desc coexist toggle separate -> merge (the default) with the never-modified reassurance
+config paired
+seeded
+settings mirror_mode=separate
+pick 0|RomM games: Separate folders
+pick 2|
+expect_exit 0
+expect_file_has .userdata/shared/Lodor/settings.conf	mirror_mode=merge
+expect_trace PRES timeout=4 msg='RomM games mix into your folders - your own files are never modified. Run Refresh library to apply.'

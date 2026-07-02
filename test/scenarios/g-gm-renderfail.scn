@@ -1,0 +1,10 @@
+desc Game Manager: system picker render failure closes honestly (menu then degrades per its own contract)
+config paired
+seeded
+sdfile Roms/Game Boy Advance (GBA)/✘ Zelda.gba
+pick 0|Game Manager
+pick 9|
+engine 0|RESULT ok
+expect_exit 0
+expect_trace PRES timeout=3 msg='Menu renderer failed - closing Game Manager'
+expect_log minui-list failed to render (rc=9) - degrading to one-shot Sync now

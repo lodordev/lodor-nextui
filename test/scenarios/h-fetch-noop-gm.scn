@@ -1,0 +1,10 @@
+# Task #128: the fetch-on-launch hook must NO-OP on the Game Manager dummy entry —
+# no --download, no --list-saves, no restore prompt. The shipped entry is NON-EMPTY
+# (stub check passes over it) AND the (LODORGM) tag guard exits before any engine call.
+desc fetch hook: no-op on the Game Manager root entry (tag guard, no engine calls)
+invoke prehook
+config paired
+expect_exit 0
+expect_trace_absent ENGINE --download
+expect_trace_absent ENGINE --list-saves
+expect_trace_absent LIST[

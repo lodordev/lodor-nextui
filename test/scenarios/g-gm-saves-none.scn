@@ -1,0 +1,13 @@
+desc Game Manager: no server saves -> honest empty message, no restore offered
+config paired
+seeded
+sdfile+ Roms/Game Boy Advance (GBA)/✓ Zelda.gba
+pick 0|Game Manager
+pick 0|Game Boy Advance (GBA)
+pick 0|✓ Zelda.gba
+pick 0|Server saves
+pick 2|
+engine 0|
+expect_exit 0
+expect_trace_absent ENGINE --restore-save
+expect_trace PRES timeout=3 msg='No server saves for ✓ Zelda.gba'

@@ -1,0 +1,9 @@
+desc C2 consent: separate-era residue triggers the one-time prompt; choosing merge writes it
+config paired
+seeded
+sdfile Roms/Game Boy Advance RomM (GBA)/[^] Old Stub (RomM).gba
+pick 0|Mix them into my folders (recommended)
+pick 2|
+expect_exit 0
+expect_file_has .userdata/shared/Lodor/settings.conf	mirror_mode=merge
+expect_trace PRES timeout=5 msg='RomM games will mix into your folders. Run Refresh library to tidy up the old ones - your own files are never modified.'

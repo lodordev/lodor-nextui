@@ -1,0 +1,11 @@
+desc non-numeric port is ignored with an honest message
+pick 0|https (secure, recommended)
+kb 0|romm.example.com
+kb 0|80a0
+pick 0|Verify TLS certificate (recommended)
+engine 0|RESULT server_set=1
+kb 2|
+expect_exit 0
+expect_trace_absent --port
+expect_trace PRES timeout=3 msg='Port must be a number - ignoring'
+expect_config_has "root_uri": "https://romm.example.com"

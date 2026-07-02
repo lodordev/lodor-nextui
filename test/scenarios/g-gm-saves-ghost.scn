@@ -1,0 +1,14 @@
+desc Game Manager: a ghost (0KB) server save is labeled unrestorable and refused
+config paired
+seeded
+sdfile+ Roms/Game Boy Advance (GBA)/✓ Zelda.gba
+pick 0|Game Manager
+pick 0|Game Boy Advance (GBA)
+pick 0|✓ Zelda.gba
+pick 0|Server saves
+pick 0|2026-07-01 10:00  -  Brick  -  0KB  (empty - can't restore)
+pick 2|
+engine 0|101\t2026-07-01 10:00\tBrick\t0KB
+expect_exit 0
+expect_trace_absent ENGINE --restore-save
+expect_trace PRES timeout=3 msg='That save has no data on the server - pick another'

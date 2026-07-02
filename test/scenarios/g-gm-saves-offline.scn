@@ -1,0 +1,15 @@
+# A3: GM Server-saves with the server unreachable (engine exit 3) must diagnose — the pre-A3
+# code showed "No server saves for <game>" (the exact 22:31 Smart Pro line).
+desc Game Manager: Server saves with engine rc=3 -> diagnose, never "No server saves"
+config paired
+seeded
+sdfile+ Roms/Game Boy Advance (GBA)/✓ Zelda.gba
+pick 0|Game Manager
+pick 0|Game Boy Advance (GBA)
+pick 0|✓ Zelda.gba
+pick 0|Server saves
+pick 2|
+engine 3|
+expect_exit 0
+expect_trace_absent PRES timeout=3 msg='No server saves for ✓ Zelda.gba'
+expect_trace PRES timeout=4 msg='Couldn't reach your server - check the server or your connection, then retry'

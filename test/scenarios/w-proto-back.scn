@@ -1,0 +1,4 @@
+desc B at the protocol pick (no Tailscale) exits the wizard
+pick 2|
+expect_exit 0
+expect_config_absent

@@ -1,0 +1,18 @@
+# Task #135 — the Smart Pro 2026-07-03 field case, exactly: rev 471 (RG34XX) wears the
+# row-level CURRENT tag because the coexist TWIN's save file holds those bytes, but the
+# save the LAUNCHED file will load matches only the OLDER rev 467. The old hook gated on
+# the newest row's CURRENT tag and logged "newest=current action=silent" for both Emerald
+# launches — the restore prompt (the A5 headline) never fired and the older save loaded.
+# STRICT: the gate is the LOCAL= trailer; LOCAL=older must PROMPT.
+desc fetch hook: newest row CURRENT via the twin's save but LOCAL=older -> prompt fires (Smart Pro field case)
+invoke prehook
+config paired
+romarg Roms/Game Boy Advance (GBA)/✓ Emerald.gba
+sdfile+ Roms/Game Boy Advance (GBA)/✓ Emerald.gba
+engine 0|471\t2026-07-02 14:28\tRG34XX\t128KB\tCURRENT\n467\t2026-07-02 04:28\tRG Rotate\t128KB\nLOCAL=older
+pick 2|
+expect_exit 0
+expect_trace LIST[Newer save from RG34XX — restore?]
+expect_trace_absent ENGINE --restore-save
+expect_log newest=foreign action=prompted
+expect_log local=older

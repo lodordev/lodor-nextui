@@ -1,0 +1,8 @@
+desc menu render failure degrades to one-shot Sync now (no blank-screen death)
+config paired
+seeded
+pick 9|
+engine 0|RESULT ok
+expect_exit 0
+expect_log minui-list failed to render (rc=9) - degrading to one-shot Sync now
+expect_trace ENGINE --push-pending -> rc=0

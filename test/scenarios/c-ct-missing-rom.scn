@@ -1,0 +1,14 @@
+# Task #134/#135: a head whose entries are ALL unresolvable on this card (game deleted /
+# different card / no marker-or-twin variant) must degrade to an HONEST empty state — it
+# is not "nothing to continue yet" (the head has entries), it is "the list is stale" —
+# with the failure logged, and never launch a dead path.
+desc Continue dispatcher: head points at a missing file, no variant on card -> honest stale-list state, no launch
+invoke ctpak
+config paired
+sdtext .userdata/shared/Lodor/continue-head.txt	/Roms/Game Boy Advance (GBA)/✘ Ghost.gba\tGhost\n
+expect_exit 0
+expect_trace PRES timeout=4 msg='Continue list is out of date - run Sync in Tools'
+expect_trace_absent ENGINE
+expect_trace_absent EMULAUNCH
+expect_log continue: entry 1 not on card
+expect_log continue: no head entry resolvable

@@ -1,0 +1,10 @@
+# Parity item #2 honesty: stuck saves are REPORTED, never silently dropped from the count.
+desc Pending saves: stuck entries reported honestly and kept queued
+config paired
+seeded
+sdfile+ Tools/tg5040/Lodor.pak/pending-saves.txt
+pick 0|Pending saves (1) - upload now
+pick 2|
+engine 0|RESULT pushed=1 total=2 stuck=1
+expect_exit 0
+expect_trace PRES timeout=4 msg='Uploaded 1 save(s) - 1 still stuck (kept queued, will retry)'

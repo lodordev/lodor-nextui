@@ -1,0 +1,16 @@
+# A2: reason=offline in the RESULT line (engine rc=0 but the server was unreachable mid-run)
+# must render as an unreachable-server message — the pre-A2 0/0 glob said "Save already in
+# sync" while tailscaled was down (2026-07-02 Smart Pro field lie).
+desc Game Manager: sync-save reason=offline -> honest unreachable message, never "in sync"
+config paired
+seeded
+sdfile+ Roms/Game Boy Advance (GBA)/✓ Zelda.gba
+pick 0|Game Manager
+pick 0|Game Boy Advance (GBA)
+pick 0|✓ Zelda.gba
+pick 0|Sync save now
+pick 2|
+engine 0|RESULT pulled=0 pushed=0 ghosts=0 reason=offline
+expect_exit 0
+expect_trace ENGINE --sync-save
+expect_trace PRES timeout=4 msg='Couldn't reach your server - check Wi-Fi'

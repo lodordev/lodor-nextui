@@ -1,0 +1,14 @@
+desc Game Manager: Delete from card confirms, evicts via the engine, save data kept
+config paired
+seeded
+sdfile+ Roms/Game Boy Advance (GBA)/✓ Zelda.gba
+pick 0|Game Manager
+pick 0|Game Boy Advance (GBA)
+pick 0|✓ Zelda.gba
+pick 0|Delete from card
+pick 0|Delete from this card
+pick 2|
+engine 0|RESULT evicted=1
+expect_exit 0
+expect_trace ENGINE --evict
+expect_trace PRES timeout=3 msg='Deleted from card - still in your library to re-download'

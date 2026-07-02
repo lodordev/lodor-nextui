@@ -1,0 +1,12 @@
+# Parity item #5: default (absent everywhere) shows "Downloaded games only"; toggling writes
+# fetch_covers=on with an honest when-it-applies message. mirror_mode is untouched.
+desc Box art toggle: off (default) -> on writes fetch_covers=on
+config paired
+seeded
+settings mirror_mode=separate
+pick 0|Box art: Downloaded games only
+pick 2|
+expect_exit 0
+expect_file_has .userdata/shared/Lodor/settings.conf fetch_covers=on
+expect_file_has .userdata/shared/Lodor/settings.conf mirror_mode=separate
+expect_trace PRES timeout=4 msg='Box art for your whole library will download on the next Refresh library (can be slow).'

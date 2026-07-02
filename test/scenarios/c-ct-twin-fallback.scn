@@ -1,0 +1,17 @@
+# Task #135: the (RomM)-twin duplicates mean the head can reference one twin while the
+# card (after cleanup / re-mirror) holds the other. Same rom_id, same game: resume the
+# surviving twin instead of the empty state. C2 retires the duplicates; Continue must be
+# robust to the drift regardless.
+desc Continue dispatcher: head names the (RomM) twin, card has the clean twin -> twin fallback launches
+invoke ctpak
+config paired
+sdfile+ Roms/Game Boy Advance (GBA)/✓ Emerald.gba
+sdtext .userdata/shared/Lodor/continue-head.txt	/Roms/Game Boy Advance (GBA)/✓ Emerald (RomM).gba\tEmerald\n
+engine 0|
+engine 0|RESULT pushed=1 staged=0
+engine 0|RESULT reconciled=1
+expect_exit 0
+expect_trace PRES timeout=-1 msg='Continuing Emerald...'
+expect_trace EMULAUNCH rom=
+expect_trace ✓ Emerald.gba'
+expect_log continue: entry 1 resolved via=twin

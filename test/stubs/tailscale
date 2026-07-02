@@ -1,0 +1,12 @@
+#!/bin/sh
+# tailscale — fake CLI for the tslib scenarios: any call fails until the (plain-file)
+# socket exists; `status --json` then answers Running (the tslib scenarios pre-stage
+# persisted login state, so Running is the honest post-socket answer).
+sock=""
+for a in "$@"; do case "$a" in --socket=*) sock="${a#--socket=}" ;; esac; done
+[ -e "$sock" ] || exit 1
+case "$*" in
+	*status*--json*) printf '{"BackendState":"Running"}\n' ;;
+	*" ip"*)         echo 100.64.0.9 ;;   # `tailscale ip -4` (Reconnect success token)
+esac
+exit 0

@@ -1,0 +1,13 @@
+# STEP 0a (tailscaled cold-start kill): the 2026-07-02 22:30 field boot showed a cold
+# tailscaled needing >5s to bind its socket; the old lib killed it at 5s, four times over.
+# A slow starter must be WAITED OUT (with progress logging) and then come Up normally.
+desc tailscale-lib: slow daemon start survives the socket wait and comes Up (no kill)
+invoke tslib
+tsdaemon slow:80
+sdfile+ .userdata/tg5040/tailscale/tailscaled.state
+tsdrv up
+expect_exit 0
+expect_trace TSDRV up rc=0
+expect_file_has .userdata/tg5040/tailscale/tailscaled.log	still waiting for tailscaled socket
+expect_file_has .userdata/tg5040/tailscale/tailscaled.log	tier-1 up: reusing persisted login
+expect_trace_absent KILLALL tailscaled

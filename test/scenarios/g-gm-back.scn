@@ -1,0 +1,8 @@
+desc Game Manager: B on the system picker backs out to the Lodor menu
+config paired
+seeded
+sdfile Roms/Game Boy Advance (GBA)/✘ Zelda.gba
+pick 0|Game Manager
+pick 2|
+expect_exit 0
+expect_trace LIST[Game Manager] rc=2

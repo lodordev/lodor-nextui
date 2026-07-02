@@ -1,0 +1,5 @@
+#!/bin/sh
+# romm-syncd stub — records the daemon start and exits (the real one is an infinite loop; the
+# sim only asserts launch.sh TRIED to start it, via the trace).
+echo "SYNCD started argv='$*'" >> "${LODOR_SIM_DIR:-/tmp}/trace.log" 2>/dev/null
+exit 0

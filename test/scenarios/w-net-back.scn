@@ -1,0 +1,5 @@
+desc 11403f2 regression: B at the network choice exits the wizard (no Wi-Fi-less trap)
+ts present
+pick 2|
+expect_exit 0
+expect_config_absent

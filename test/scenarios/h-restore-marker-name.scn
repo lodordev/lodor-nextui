@@ -1,0 +1,12 @@
+# A1/A4 end-to-end shell flow for a marker-prefixed + (RomM)-tagged on-card name: the decorated
+# path must flow through the save check unmangled and the CURRENT gate must still hold.
+desc fetch hook: marker+tag named rom (separate mode shape) -> CURRENT gate silent launch
+invoke prehook
+config paired
+romarg Roms/Game Boy Advance (GBA)/✓ Zelda (RomM).gba
+sdfile+ Roms/Game Boy Advance (GBA)/✓ Zelda (RomM).gba
+engine 0|101\t2026-07-01 10:00\tBrick\t32KB\tCURRENT\nLOCAL=current
+expect_exit 0
+expect_trace_absent LIST[
+expect_trace ENGINE --list-saves
+expect_log newest=current action=silent

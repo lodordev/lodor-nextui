@@ -1,0 +1,9 @@
+desc Recent activity renders the sync feed as a read-only list
+config paired
+seeded
+pick 0|Recent activity
+pick 0|Zelda  -  2h ago  -  Brick
+pick 2|
+engine 0|Zelda\t2h ago\tBrick\nMario\t1d ago\tFlip
+expect_exit 0
+expect_trace LIST[Recent activity] rc=0

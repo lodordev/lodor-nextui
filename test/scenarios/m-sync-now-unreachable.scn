@@ -1,0 +1,8 @@
+desc Sync now with unreachable server (rc=3): honest diagnosis, menu stays alive
+config paired
+seeded
+pick 0|Sync now
+pick 2|
+engine 3|
+expect_exit 0
+expect_trace PRES timeout=4 msg='Couldn't reach your server - check the server or your connection, then retry'

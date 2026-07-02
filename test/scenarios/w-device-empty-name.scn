@@ -1,0 +1,16 @@
+desc empty device name: honest message, retry, then success
+pick 0|https (secure, recommended)
+kb 0|romm.example.com
+kb 0|
+pick 0|Verify TLS certificate (recommended)
+engine 0|RESULT server_set=1
+kb 0|PAIR123
+engine 0|RESULT paired=1 scopes_ok=1
+kb 0|
+kb 0|Brick Upstairs
+engine 0|RESULT registered=1
+engine 0|RESULT mirrored ok
+pick 2|
+expect_exit 0
+expect_trace PRES timeout=3 msg='Device name can't be empty'
+expect_config_has "device_name"

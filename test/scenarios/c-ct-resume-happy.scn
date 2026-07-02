@@ -1,0 +1,22 @@
+# Task #134: the one-press Continue root row end-to-end (sim side): NextUI "launches" the
+# dummy entry -> LODORCT.pak resolves the engine-persisted head, runs the FETCH bracket
+# against the REAL game (download-on-launch fills the stub), launches the REAL emulator,
+# then the PUSH bracket (save push + marker reconcile) — all with the REAL path.
+desc Continue dispatcher: head -> fetch bracket -> real emulator -> push bracket (real path throughout)
+invoke ctpak
+config paired
+sdfile Roms/Game Boy Advance (GBA)/✘ Zelda.gba
+sdtext .userdata/shared/Lodor/continue-head.txt	/Roms/Game Boy Advance (GBA)/✘ Zelda.gba\tZelda\n
+engine 0|RESULT downloaded=1
+engine 0|
+engine 0|RESULT pushed=1 staged=0
+engine 0|RESULT reconciled=1
+expect_exit 0
+expect_trace PRES timeout=-1 msg='Continuing...'
+expect_trace PRES timeout=-1 msg='Continuing Zelda...'
+expect_trace ENGINE --download
+expect_file_has Roms/Game Boy Advance (GBA)/✘ Zelda.gba	DLBYTES
+expect_trace EMULAUNCH rom=
+expect_trace ✘ Zelda.gba'
+expect_trace ENGINE --push-save
+expect_trace ENGINE --reconcile

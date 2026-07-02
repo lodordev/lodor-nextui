@@ -1,0 +1,9 @@
+desc configured client: B at the menu exits cleanly; hooks self-install on first run
+config paired
+seeded
+pick 2|
+expect_exit 0
+expect_file .userdata/tg5040/.hooks/pre-launch.d/10-lodor-fetch.sync.sh
+expect_file .userdata/tg5040/.hooks/post-launch.d/90-lodor-pushsave.sh
+expect_file .userdata/tg5040/.hooks/boot.d/10-lodor.sh
+expect_log hooks self-installed + verified

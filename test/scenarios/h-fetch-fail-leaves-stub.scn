@@ -1,0 +1,13 @@
+# Task #120: a FAILED fetch-on-launch must (a) show a readable red-screen cause, (b) leave
+# the 0-byte cloud stub INTACT so the emulator fails fast on an empty file — never a deleted
+# entry, never fake progress — and (c) still exit 0 (a pre-launch hook cannot cancel the launch).
+desc fetch hook (#120): failed download leaves the 0-byte stub intact + honest error screen
+invoke prehook
+config paired
+romarg Roms/Game Boy Advance (GBA)/✘ Zelda.gba
+sdfile Roms/Game Boy Advance (GBA)/✘ Zelda.gba
+engine 4|
+expect_exit 0
+expect_trace ENGINE --download
+expect_trace SHOW2 simple text='Download failed — check Wi-Fi'
+expect_file_empty Roms/Game Boy Advance (GBA)/✘ Zelda.gba

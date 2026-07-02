@@ -1,0 +1,16 @@
+# Task #124: a Sync now that hits the engine's PAIRING_EXPIRED contract (exit 6) must say so
+# actionably (not a generic sync error), set the shared flag, and the redrawn menu must carry
+# the "! Pairing expired - re-pair" banner at the TOP — picking it opens the re-pair wizard
+# (asserted by reaching the wizard's protocol step; the exact-line list check proves the banner
+# row really was in the menu).
+desc menu (#124): engine rc=6 -> actionable message + flag + top banner -> banner opens re-pair
+config paired
+seeded
+pick 0|Sync now
+engine 6|PAIRING_EXPIRED
+pick 0|! Pairing expired - re-pair
+pick 2|
+expect_exit 0
+expect_trace PRES timeout=4 msg='Pairing expired - run Setup / Re-pair'
+expect_trace LIST[RomM server protocol]
+expect_file .userdata/shared/Lodor/.pairing-expired

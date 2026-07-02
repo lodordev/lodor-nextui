@@ -1,0 +1,18 @@
+# Task #131 (0.9.1-beta Smart Pro defect: GM root row missing while Tools -> Lodor worked):
+# the root-entry heal now runs BEFORE the onboarding gate, so even a CANCELLED wizard
+# session on an unconfigured pak leaves the root entry installed for the next boot scan.
+desc Game Manager root entry heals even when the wizard is cancelled (unconfigured pak)
+config none
+pick 2|
+expect_exit 0
+expect_config_absent
+expect_file Emus/tg5040/LODORGM.pak/launch.sh
+expect_file Roms/Game Manager (LODORGM)/Open Game Manager.gm
+expect_file Roms/Game Manager (LODORGM)/Game Manager (LODORGM).m3u
+expect_log gm root entry: Emus/tg5040/LODORGM.pak installed/refreshed
+# task #134: legacy folder migrates away; NBSP bottom-sort alias lands in Roms/map.txt
+sdfile+ Roms/0) Game Manager (LODORGM)/Open Game Manager.gm
+expect_file_absent Roms/0) Game Manager (LODORGM)
+expect_file_has Roms/map.txt	Game Manager (LODORGM)	 Game Manager
+expect_log gm root entry: migrated - legacy Roms/0) Game Manager (LODORGM) removed
+expect_log gm root entry: Roms/map.txt bottom-sort alias installed

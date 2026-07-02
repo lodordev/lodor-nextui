@@ -1,0 +1,13 @@
+desc Game Manager: declining the delete confirm evicts nothing
+config paired
+seeded
+sdfile+ Roms/Game Boy Advance (GBA)/✓ Zelda.gba
+pick 0|Game Manager
+pick 0|Game Boy Advance (GBA)
+pick 0|✓ Zelda.gba
+pick 0|Delete from card
+pick 0|Keep it
+pick 2|
+expect_exit 0
+expect_trace_absent ENGINE --evict
+expect_file Roms/Game Boy Advance (GBA)/✓ Zelda.gba

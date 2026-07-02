@@ -1,0 +1,17 @@
+# Parity item #3: a cloud stub gains "Add to download queue" — one SDCARD-relative line in the
+# engine's own download-queue.txt format, dedup'd on a second add (expect_file_lines 1).
+desc Game Manager: Add to download queue writes the engine-format line once (dedup)
+config paired
+seeded
+sdfile Roms/Game Boy Advance (GBA)/✘ Zelda.gba
+pick 0|Game Manager
+pick 0|Game Boy Advance (GBA)
+pick 0|✘ Zelda.gba
+pick 0|Add to download queue
+pick 0|Add to download queue
+pick 2|
+expect_exit 0
+expect_trace PRES timeout=3 msg='Queued - download it any time from the Lodor menu'
+expect_trace PRES timeout=3 msg='Already queued - run Download queue from the Lodor menu'
+expect_file_has Tools/tg5040/Lodor.pak/download-queue.txt	Roms/Game Boy Advance (GBA)/✘ Zelda.gba
+expect_file_lines Tools/tg5040/Lodor.pak/download-queue.txt	1

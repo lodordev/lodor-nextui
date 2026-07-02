@@ -1,0 +1,11 @@
+desc uninstall row: default keeps downloads; engine walk reported honestly; root entries removed
+config paired
+seeded
+settings mirror_mode=merge
+pick 0|Remove Lodor from this card
+pick 0|Keep my downloaded games
+engine 0|RESULT uninstalled=1 removed=12 kept_downloads=3 skipped=0
+pick 2|
+expect_exit 0
+expect_trace PRES timeout=6 msg='Removed 12 Lodor file(s). Delete Tools/tg5040/Lodor.pak (and Lodor's config in .userdata/shared) to finish.'
+expect_file_absent Roms/Game Manager (LODORGM)/Open Game Manager.gm

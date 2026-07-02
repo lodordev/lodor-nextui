@@ -1,0 +1,19 @@
+# Task #135: the head is a newest-first LIST — an entry whose game is gone from the card
+# (deleted, different card, no resolvable variant) falls through to the NEXT entry rather
+# than the empty state, every decision logged.
+desc Continue dispatcher: entry 1 gone from card -> falls through to entry 2 and resumes it
+invoke ctpak
+config paired
+sdfile Roms/Game Boy Advance (GBA)/✘ Zelda.gba
+sdtext .userdata/shared/Lodor/continue-head.txt	/Roms/Game Boy Advance (GBA)/✘ Ghost.gba\tGhost\n/Roms/Game Boy Advance (GBA)/✘ Zelda.gba\tZelda\n
+engine 0|RESULT downloaded=1
+engine 0|
+engine 0|RESULT pushed=1 staged=0
+engine 0|RESULT reconciled=1
+expect_exit 0
+expect_trace PRES timeout=-1 msg='Continuing Zelda...'
+expect_trace ENGINE --download
+expect_trace EMULAUNCH rom=
+expect_trace ✘ Zelda.gba'
+expect_log continue: entry 1 not on card
+expect_log continue: entry 2 resolved via=exact

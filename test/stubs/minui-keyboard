@@ -1,0 +1,22 @@
+#!/bin/sh
+# minui-keyboard stub — scripted via the `kb` queue. Line format: <rc>|<typed text>.
+#   rc=0 writes the typed text to --write-location (confirm); rc=2 back, rc=3 menu,
+#   anything else = render failure — nothing written (real contract).
+set -u
+T="${LODOR_SIM_DIR:?}/trace.log"
+wl=""; title=""
+while [ $# -gt 0 ]; do
+	case "$1" in
+		--write-location) wl="${2:-}"; shift 2 ;;
+		--title)          title="${2:-}"; shift 2 ;;
+		*) shift ;;
+	esac
+done
+line="$(simq kb)" || { echo "KB[$title] UNDERRUN (no scripted answer)" >> "$T"; exit 42; }
+rc="${line%%|*}"
+txt="${line#*|}"; [ "$txt" = "$line" ] && txt=""
+if [ "$rc" = 0 ] && [ -n "$wl" ]; then
+	printf '%s\n' "$txt" > "$wl"
+fi
+echo "KB[$title] rc=$rc txt='$txt'" >> "$T"
+exit "$rc"

@@ -1,0 +1,5 @@
+#!/bin/sh
+# sleep — sim time compression: every sleep in the pak scripts becomes 0.05s real, so polling
+# loops advance by ITERATION COUNT, not wall clock. A genuinely unbounded loop still spins
+# until the harness `timeout` kills it — which is the failure we want to surface.
+exec /bin/sleep "${LODOR_SIM_TICK:-0.05}"

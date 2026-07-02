@@ -1,0 +1,13 @@
+# Item #4: search is reachable from INSIDE the Game Manager too (root-entry users never need
+# the Tools menu to search).
+desc Game Manager: Search library row present and functional
+config paired
+seeded
+sdfile Roms/Game Boy Advance (GBA)/✘ Zelda.gba
+pick 0|Game Manager
+pick 0|Search library
+kb 0|zelda
+pick 0|✘ Zelda.gba  -  Game Boy Advance (GBA)
+pick 2|
+expect_exit 0
+expect_trace LIST[Search: zelda]

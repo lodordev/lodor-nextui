@@ -1,0 +1,9 @@
+desc Download BIOS reports the engine RESULT line verbatim
+config paired
+seeded
+pick 0|Download BIOS
+pick 2|
+engine 0|RESULT bios=3 ok=3
+expect_exit 0
+expect_trace ENGINE --download-bios -> rc=0
+expect_trace PRES timeout=3 msg='RESULT bios=3 ok=3'

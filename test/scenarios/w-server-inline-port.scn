@@ -1,0 +1,18 @@
+# UX: a pasted "host:8443" carries its own port — parsed inline, the separate port step is
+# SKIPPED (no KB[Port), and --set-server gets --port 8443.
+desc wizard: host:port typed inline skips the port step
+pick 0|https (secure, recommended)
+kb 0|romm.example.com:8443
+pick 0|Verify TLS certificate (recommended)
+engine 0|RESULT server_set=1
+kb 0|PAIR123
+engine 0|RESULT paired=1 scopes_ok=1
+kb 0|TrimUI Brick
+engine 0|RESULT registered=1
+engine 0|RESULT mirrored ok
+pick 2|
+expect_exit 0
+expect_trace ENGINE --set-server https://romm.example.com --port 8443 -> rc=0
+expect_trace_absent KB[Port
+expect_config_has "root_uri": "https://romm.example.com"
+expect_config_has "token"

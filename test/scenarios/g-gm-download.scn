@@ -1,0 +1,16 @@
+desc Game Manager: Download now fills the stub, reconciles the marker, reports honestly
+config paired
+seeded
+sdfile Roms/Game Boy Advance (GBA)/✘ Zelda.gba
+pick 0|Game Manager
+pick 0|Game Boy Advance (GBA)
+pick 0|✘ Zelda.gba
+pick 0|Download now
+pick 2|
+engine 0|RESULT downloaded=1
+engine 0|RESULT reconciled=1
+expect_exit 0
+expect_trace ENGINE --download
+expect_trace ENGINE --reconcile
+expect_trace PRES timeout=3 msg='Downloaded - it's in Game Boy Advance (GBA) in your library'
+expect_file_has Roms/Game Boy Advance (GBA)/✘ Zelda.gba	DLBYTES

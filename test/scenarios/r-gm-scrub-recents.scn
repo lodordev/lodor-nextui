@@ -1,0 +1,14 @@
+# B2 + B3 on the GM path: selecting the root row paints IMMEDIATELY ("Opening Game
+# Manager..." from the dispatcher, before any pak init), and the GM session's exit scrubs
+# the dispatcher dummies out of NextUI recents while preserving real rows.
+desc GM root entry: instant first-paint + recents scrub on exit
+invoke emupak
+config paired
+seeded
+sdfile Roms/Game Boy Advance (GBA)/✘ Zelda.gba
+sdtext .userdata/shared/.minui/recent.txt	/Roms/Game Manager (LODORGM)/Open Game Manager.gm\tGame Manager\n/Roms/Game Boy Advance (GBA)/✓ Mario.gba\n
+pick 2|
+expect_exit 0
+expect_trace PRES timeout=-1 msg='Opening Game Manager...'
+expect_file_has .userdata/shared/.minui/recent.txt	✓ Mario.gba
+expect_file_lines .userdata/shared/.minui/recent.txt	1

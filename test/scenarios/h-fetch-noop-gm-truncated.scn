@@ -1,0 +1,11 @@
+# Task #128 belt-and-braces: even if the GM dummy entry gets TRUNCATED to 0 bytes
+# (card damage / user edit), the tag guard still fires BEFORE the 0-byte stub check —
+# the hook must never try to "download" the Game Manager.
+desc fetch hook: a 0-byte GM dummy entry is still skipped (guard beats the stub check)
+invoke prehook
+config paired
+# overwrite the staged (non-empty) entry with a 0-byte file AFTER card staging
+sdfile Roms/Game Manager (LODORGM)/Open Game Manager.gm
+expect_exit 0
+expect_trace_absent ENGINE --download
+expect_trace_absent ENGINE --list-saves

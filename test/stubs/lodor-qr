@@ -1,0 +1,38 @@
+#!/bin/sh
+# lodor-qr stub — scripted via the `qr` queue. One field: the behavior mode.
+#   0   = FAITHFUL: like the real SDL helper, poll --statefile until it reads the --ready token,
+#         then exit 0; if the token never appears within the sim window, exit 3 (timeout). This
+#         is deliberately NOT a scripted `exit 0` — it proves the statefile plumbing end-to-end
+#         (launch.sh's background status writer must actually reach the file the QR reads).
+#   2   = user cancelled (B)            -> exit 2
+#   3   = timed out                     -> exit 3
+#   4   = render/init failure           -> exit 4
+#   139 = crash (SIGSEGV as seen 2026)  -> exit 139
+#   any other integer                   -> exit as-is
+set -u
+T="${LODOR_SIM_DIR:?}/trace.log"
+sf=""; ready="connected"; url=""
+while [ $# -gt 0 ]; do
+	case "$1" in
+		--statefile) sf="${2:-}"; shift 2 ;;
+		--ready)     ready="${2:-}"; shift 2 ;;
+		--url)       url="${2:-}"; shift 2 ;;
+		*) shift ;;
+	esac
+done
+mode="$(simq qr)" || { echo "QR UNDERRUN (no scripted behavior)" >> "$T"; exit 44; }
+echo "QR mode=$mode statefile=$sf url='$url'" >> "$T"
+if [ "$mode" = 0 ]; then
+	i=0
+	while [ "$i" -lt 120 ]; do
+		if grep -qx "$ready" "$sf" 2>/dev/null; then
+			echo "QR saw '$ready' in statefile -> exit 0" >> "$T"
+			exit 0
+		fi
+		/bin/sleep 0.05
+		i=$((i + 1))
+	done
+	echo "QR never saw '$ready' in statefile -> exit 3 (timeout)" >> "$T"
+	exit 3
+fi
+exit "$mode"

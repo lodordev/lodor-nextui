@@ -1,0 +1,103 @@
+#!/bin/sh
+# romm-syncd (NextUI / tg5040) — periodic, low-footprint background save flush.
+#
+# A tiny POSIX-sh loop (NOT a resident Go process — it holds ~nothing and only spawns the short-lived
+# engine per cycle). Launched DETACHED from the boot.d hook so it never delays boot. NextUI OWNS
+# Wi-Fi, so this daemon NEVER brings the radio up or down — it rides whatever connection NextUI has.
+# It flushes the offline pending-save queue at most every INTERVAL (or sooner when there's something
+# queued and we're charging). Per-game fetch/push is handled by the launch hooks, not here.
+
+set -u
+SDCARD="${SDCARD_PATH:-/mnt/SDCARD}"
+PLAT="${PLATFORM:-tg5040}"
+PAK="$SDCARD/Tools/$PLAT/Lodor.pak"
+LOG="$PAK/syncd.log"
+WIFI_LOG="$LOG"
+
+. "$PAK/lib/romm-sync-lib.sh" || exit 1
+
+POLL=60
+INTERVAL="${ROMM_SYNC_INTERVAL:-1800}"          # act at most every 30 min
+FLUSH_INTERVAL="${ROMM_FLUSH_INTERVAL:-300}"    # off-charge: flush queued saves at most every 5 min
+PENDING_FILE="$PAK/pending-saves.txt"
+
+log() { echo "$(date +'%F %T') $1" >> "$LOG"; }
+
+has_pending() { [ -s "$PENDING_FILE" ]; }
+
+# First-run library-seed sentinel (shared with launch.sh's maybe_seed_library). Until it exists, the
+# library is empty and must be populated once; either the Tool or this daemon may do it first.
+SEED_SENTINEL="$PAK/.library-seeded"
+
+# seed_library_once — Bug-1 fix on the daemon side: make the library APPEAR after first boot without
+# the user opening Tools -> Lodor. Runs at most once (sentinel-gated), only when paired + Wi-Fi up;
+# self-heals across polls until Wi-Fi comes up. Mirrors the catalog + collections (idempotent). Never
+# touches the radio. Returns immediately when already seeded or preconditions are not met.
+seed_library_once() {
+	[ -f "$SEED_SENTINEL" ] && return 0
+	creds_present || return 0
+	_radio_ready  || return 0          # ride existing Wi-Fi only
+	wifi_acquire bg; sacq=$?
+	[ "$sacq" -eq 0 ] || { [ "$sacq" -eq 2 ] && log "seed: wifi busy; retry next poll"; return 0; }
+	set_clock || log "seed: clock set failed"
+	run_sync --mirror-catalog     >> "$LOG" 2>&1; sm1=$?
+	run_sync --mirror-collections >> "$LOG" 2>&1; sm2=$?
+	wifi_release
+	if [ "$sm1" -eq 0 ] && [ "$sm2" -eq 0 ]; then
+		: > "$SEED_SENTINEL" 2>/dev/null
+		log "initial library seed complete (catalog+collections mirrored)"
+	else
+		log "initial library seed failed (catalog=$sm1 collections=$sm2); will retry next poll"
+	fi
+}
+
+# Drop the coordination mutex on exit (owner-scoped no-op unless we hold it). NEVER powers Wi-Fi down.
+trap 'wifi_release' EXIT INT TERM HUP QUIT
+
+last_attempt=$(date +%s)   # defer the first cycle by INTERVAL (keep boot quiet)
+last_flush=$(date +%s)
+log "romm-syncd started (interval=${INTERVAL}s, poll=${POLL}s) — NextUI rides existing Wi-Fi"
+
+while :; do
+	sleep "$POLL"
+	now=$(date +%s)
+	creds_present || continue
+
+	# First-boot: populate the empty library once (no-op after the sentinel exists).
+	seed_library_once
+
+	# FULL  = charging + every INTERVAL: flush pending saves.
+	# FLUSH = off-charge but there ARE queued saves: protect progress, at most every FLUSH_INTERVAL.
+	mode=""
+	if [ $((now - last_attempt)) -ge "$INTERVAL" ] && is_charging; then
+		mode=full
+	elif [ $((now - last_flush)) -ge "$FLUSH_INTERVAL" ] && has_pending; then
+		mode=flush
+	fi
+	[ -n "$mode" ] || continue
+
+	# Coordination only. "busy" (a hook or the Tool holds the mutex) must NOT consume the timer.
+	wifi_acquire bg; acq=$?
+	if [ "$acq" -eq 2 ]; then
+		log "wifi busy (another actor); retry next poll"
+		continue
+	fi
+	now=$(date +%s)
+	[ "$mode" = full ] && last_attempt=$now
+	last_flush=$now
+	if [ "$acq" -eq 0 ]; then
+		set_clock || log "clock set failed"
+		run_sync --push-pending >> "$LOG" 2>&1; rc=$?
+		if [ "$mode" = full ]; then
+			# Charging-interval extras (task #132/#133): light cross-device Continue +
+			# Recently Played refresh. Local-index only — never the catalog mirror.
+			run_sync --sync-continue >> "$LOG" 2>&1; crc=$?
+			log "continue refresh rc=$crc"
+		fi
+		wifi_release
+		log "$mode flush rc=$rc"
+	else
+		# acq=1 -> Wi-Fi not connected (NextUI Wi-Fi is off). Back off; the user owns the radio.
+		log "Wi-Fi not connected (NextUI owns it); back off"
+	fi
+done

@@ -1,0 +1,12 @@
+# Parity item #3: the menu row carries a LIVE local count — "Download queue (1)" for the
+# one queued line below (count_lines reads the pak's download-queue.txt, no network).
+desc Download queue row shows the live count and reports the engine RESULT line verbatim
+config paired
+seeded
+sdfile+ Tools/tg5040/Lodor.pak/download-queue.txt
+pick 0|Download queue (1)
+pick 2|
+engine 0|RESULT downloaded=2 failed=0 remaining=0
+expect_exit 0
+expect_trace ENGINE --download-queue -> rc=0
+expect_trace PRES timeout=3 msg='RESULT downloaded=2 failed=0 remaining=0'

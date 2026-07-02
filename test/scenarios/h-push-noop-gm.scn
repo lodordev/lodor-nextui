@@ -1,0 +1,8 @@
+# Task #128: the post-launch push-save hook must NO-OP on the Game Manager dummy entry —
+# no --sync-save, no --reconcile (nothing to push, no marker to flip).
+desc push hook: no-op on the Game Manager root entry (tag guard, no engine calls)
+invoke posthook
+config paired
+expect_exit 0
+expect_trace_absent ENGINE --push-save
+expect_trace_absent ENGINE --reconcile

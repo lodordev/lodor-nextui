@@ -1,0 +1,14 @@
+# task #134: the client menu's "Tailscale: Reconnect" row (beside status/reset) reports the
+# lib's honest success token as "Reconnected (<ip>)". Lib restart logic itself is covered by
+# the t-ts-reconnect-* tslib scenarios; this pins the row + UX text + dispatch.
+desc menu: Tailscale: Reconnect row -> "Reconnected (100.64.0.9)" on success
+config paired
+seeded
+ts present
+tsstatus connected
+pick 0|Tailscale: Reconnect
+pick 2|
+expect_exit 0
+expect_trace TESTLIB tailscale_reconnect (scripted status=connected)
+expect_trace PRES timeout=-1 msg='Reconnecting Tailscale...'
+expect_trace PRES timeout=5 msg='Reconnected (100.64.0.9)'

@@ -1,0 +1,14 @@
+# Task #128: the ROOT ENTRY path end-to-end (sim side): NextUI "launches" the dummy
+# entry -> Emus/tg5040/LODORGM.pak/launch.sh execs Tools/.../launch.sh --game-manager
+# -> the SAME do_game_manager the Tools menu uses opens directly (no Tools menu drawn).
+desc Game Manager root entry: LODORGM Emus pak opens the Game Manager directly
+invoke emupak
+config paired
+seeded
+sdfile Roms/Game Boy Advance (GBA)/✘ Zelda.gba
+# GM system picker (title "Game Manager") -> back out
+pick 2|
+expect_exit 0
+expect_trace LIST[Game Manager] rc=2
+# --game-manager must NOT draw the Tools menu
+expect_trace_absent LIST[Lodor]

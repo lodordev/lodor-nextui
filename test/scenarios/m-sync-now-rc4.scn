@@ -1,0 +1,9 @@
+# UX: rc=4 (ran but errored) no longer points a device user at a log file they cannot read.
+desc Sync now rc=4 maps to an actionable message, not "see last-sync.log"
+config paired
+seeded
+pick 0|Sync now
+pick 2|
+engine 4|
+expect_exit 0
+expect_trace PRES timeout=4 msg='Sync finished with errors - some items didn't sync, try again'

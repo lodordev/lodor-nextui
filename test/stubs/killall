@@ -1,0 +1,6 @@
+#!/bin/sh
+# killall — no-op recorder. The pak scripts use killall to reap on-device UI helpers
+# (minui-presenter / lodor-qr / tailscaled); in the sim those stubs exit instantly, and a
+# real killall (absent on many CI hosts anyway) could hit unrelated container processes.
+echo "KILLALL $*" >> "${LODOR_SIM_DIR:-/tmp}/trace.log" 2>/dev/null
+exit 0

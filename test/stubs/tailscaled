@@ -1,0 +1,22 @@
+#!/bin/sh
+# tailscaled — fake daemon for the tslib scenarios (STEP 0a: socket-wait hardening).
+# The tsdaemon directive writes the scripted mode to $LODOR_SIM_DIR/tsdaemon.mode:
+#   die           exit 1 immediately with an error line on stderr (the lib's spawn
+#                 redirect must land it in the ts log — the "why" capture under test)
+#   never         run forever without ever creating the socket (timeout path)
+#   slow:<ticks>  create the socket file after <ticks> * 0.05s REAL time, then run
+#                 forever (the cold-start shape the 2026-07-02 field boot died on)
+# Uses /bin/sleep directly — this daemon's timing must be real, not sim-compressed.
+mode="$(cat "${LODOR_SIM_DIR:?}/tsdaemon.mode" 2>/dev/null || echo die)"
+echo "FAKE-TAILSCALED start mode=$mode pid=$$" >&2
+sock=""
+for a in "$@"; do case "$a" in --socket=*) sock="${a#--socket=}" ;; esac; done
+case "$mode" in
+	die)    echo "fake tailscaled: scripted death (flag parse boom)" >&2; exit 1 ;;
+	never)  while :; do /bin/sleep 1; done ;;
+	slow:*) n="${mode#slow:}"
+		i=0; while [ "$i" -lt "$n" ]; do /bin/sleep 0.05; i=$((i+1)); done
+		: > "$sock"
+		while :; do /bin/sleep 1; done ;;
+	*) echo "fake tailscaled: unknown mode '$mode'" >&2; exit 2 ;;
+esac

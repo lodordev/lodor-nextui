@@ -1,0 +1,6 @@
+#!/bin/sh
+# romm-run stub — the real romm-run sources romm-sync-lib and probes hardware (wlan0, clock,
+# nc) before exec'ing lodor-sync; in the sim those preconditions are the TESTLIB's concern, so
+# this forwards straight to the engine stub with the same "one call, same argv" contract.
+d="$(dirname "$0")"
+exec "$d/../lodor-sync" "$@"

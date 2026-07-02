@@ -1,0 +1,15 @@
+desc B on the port re-entry keeps the previously-typed port (regression: silently dropped)
+pick 0|https (secure, recommended)
+kb 0|romm.example.com
+kb 0|8443
+pick 0|Verify TLS certificate (recommended)
+engine 1|SETSERVERFAIL server rejected (scripted)
+pick 0|https (secure, recommended)
+kb 0|romm.example.com
+kb 2|
+pick 0|Verify TLS certificate (recommended)
+engine 0|RESULT server_set=1
+kb 2|
+expect_exit 0
+expect_trace ENGINE --set-server https://romm.example.com --port 8443 -> rc=1
+expect_trace ENGINE --set-server https://romm.example.com --port 8443 -> rc=0

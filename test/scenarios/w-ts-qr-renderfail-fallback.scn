@@ -1,0 +1,23 @@
+desc lodor-qr render failure (4): text-URL fallback lets onboarding complete anyway
+ts present
+timeout 60
+pick 0|Tailscale (sign in with QR)
+pick 0|http (plain)
+tsurl https://login.tailscale.com/a/stub123
+tsstatus pending
+tsstatus connected
+qr 4
+kb 0|romm
+kb 0|
+engine 0|RESULT server_set=1
+kb 0|PAIR123
+engine 0|RESULT paired=1 scopes_ok=1
+kb 0|Brick
+engine 0|RESULT registered=1
+engine 0|RESULT mirrored ok
+pick 2|
+expect_exit 0
+expect_config_has "token"
+expect_config_has socks5_proxy
+expect_log lodor-qr render failure (exit 4) - falling back to text URL
+expect_trace PRES timeout=-1 msg='Sign in at: https://login.tailscale.com/a/stub123   (waiting for sign-in...)'

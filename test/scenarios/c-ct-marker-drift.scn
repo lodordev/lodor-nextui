@@ -1,0 +1,18 @@
+# Task #135 (Smart Pro 2026-07-03): the engine wrote the head while the game was a ✘ stub;
+# the post-launch hook renamed ✘→✓ the moment the downloaded game exited, and no sync ran
+# again — so the head named a path that was no longer on the card and one press on
+# "Continue: Pokemon - Emerald Version" answered "Nothing to continue yet". The dispatcher
+# must resolve the same basename under the other download-state marker and launch it.
+desc Continue dispatcher: head says ✘ but the card holds ✓ (marker drift) -> resolves + launches
+invoke ctpak
+config paired
+sdfile+ Roms/Game Boy Advance (GBA)/✓ Emerald.gba
+sdtext .userdata/shared/Lodor/continue-head.txt	/Roms/Game Boy Advance (GBA)/✘ Emerald.gba\tEmerald\n
+engine 0|
+engine 0|RESULT pushed=1 staged=0
+engine 0|RESULT reconciled=1
+expect_exit 0
+expect_trace PRES timeout=-1 msg='Continuing Emerald...'
+expect_trace EMULAUNCH rom=
+expect_trace ✓ Emerald.gba'
+expect_log continue: entry 1 resolved via=marker

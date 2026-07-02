@@ -1,0 +1,14 @@
+# Task #128: the Game Manager's SYSTEM PICKER must not list the Game Manager's own
+# root-entry folder (managing it from inside itself is nonsense, and "Delete from
+# card" on it would be refused by the engine anyway). Proof of ABSENCE: the sim's
+# minui-list stub exit-43s when a scenario picks a line that is NOT in the drawn
+# list — so deliberately picking the GM folder must produce SELECTION NOT IN LIST.
+desc Game Manager: its own root-entry folder is absent from the system picker
+config paired
+seeded
+sdfile Roms/Game Boy Advance (GBA)/✘ Zelda.gba
+pick 0|Game Manager
+pick 0|Game Manager (LODORGM)
+pick 2|
+expect_exit 0
+expect_trace SELECTION NOT IN LIST: 'Game Manager (LODORGM)'

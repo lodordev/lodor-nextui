@@ -1,0 +1,14 @@
+# POSITIVE CONTROL for the #128 guard (and first direct harness coverage of the fetch
+# hook): a real system's 0-byte cloud stub still triggers --download and gets filled —
+# proving the (LODORGM) guard did not over-match and the invoke harness actually runs
+# the hook. After the fill, the save check runs (sticky engine line has no TSV rows ->
+# no restore prompt -> silent launch).
+desc fetch hook: a real 0-byte stub still downloads (guard does not over-match)
+invoke prehook
+config paired
+romarg Roms/Game Boy Advance (GBA)/✘ Zelda.gba
+sdfile Roms/Game Boy Advance (GBA)/✘ Zelda.gba
+engine 0|RESULT downloaded=1
+expect_exit 0
+expect_trace ENGINE --download
+expect_file_has Roms/Game Boy Advance (GBA)/✘ Zelda.gba	DLBYTES

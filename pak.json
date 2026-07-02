@@ -1,0 +1,14 @@
+{
+  "name": "Lodor",
+  "version": "0.9.1-beta",
+  "type": "TOOL",
+  "description": "RomM thin-client — whole-library stubs, download-on-launch, two-way save sync",
+  "author": "lodordev",
+  "repo_url": "https://github.com/lodordev/lodor-nextui",
+  "release_filename": "Lodor.pak.zip",
+  "platforms": ["tg5040", "tg5050"],
+  "update_ignore": ["config.json", "settings.conf"],
+  "changelog": {
+    "0.9.1-beta": "First public beta."
+  }
+}

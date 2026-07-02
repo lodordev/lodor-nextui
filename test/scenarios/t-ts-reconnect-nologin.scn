@@ -1,0 +1,11 @@
+# task #134 (Reconnect): no saved login = reconnect CANNOT work (only the QR mints one).
+# Must say so honestly BEFORE tearing anything down, and must not spawn a daemon.
+desc tailscale-lib: Reconnect with no saved login fails honestly (no-login), spawns nothing
+invoke tslib
+tsdaemon slow:10
+tsdrv reconnect
+tsdrv count
+expect_exit 0
+expect_trace TSDRV reconnect rc=1 tok=no-login
+expect_trace TSDRV daemons=0
+expect_file_has .userdata/tg5040/tailscale/tailscaled.log reconnect: no saved login

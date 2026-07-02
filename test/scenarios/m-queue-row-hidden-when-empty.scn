@@ -1,0 +1,9 @@
+# Parity item #3: an empty/missing download queue draws NO dead "Download queue" row. Absence
+# proven via the stub's exact-line validation (exit 43 -> degrade path).
+desc Download queue row absent when the queue is empty
+config paired
+seeded
+pick 0|Download queue (1)
+engine 0|RESULT ok
+expect_exit 0
+expect_trace SELECTION NOT IN LIST: 'Download queue (1)'

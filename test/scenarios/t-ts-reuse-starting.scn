@@ -1,0 +1,22 @@
+# STEP 0a: when the socket wait times out but the daemon is STILL ALIVE, it must be left
+# running (never killed mid-start — the 22:30 field bug), and the NEXT attempt must reuse
+# that starting daemon instead of spawning a duplicate (the "address already in use"
+# pile-up from earlier field boots).
+desc tailscale-lib: timeout leaves a starting daemon up; the retry reuses it (one daemon total)
+invoke tslib
+tsdaemon slow:100
+sdfile+ .userdata/tg5040/tailscale/tailscaled.state
+tsdrv wait=1
+tsdrv up
+tsdrv alive
+tsdrv wait=30
+tsdrv up
+tsdrv count
+expect_exit 0
+expect_trace TSDRV up rc=1
+expect_trace TSDRV daemon alive=1
+expect_trace TSDRV up rc=0
+expect_trace TSDRV daemons=1
+expect_file_has .userdata/tg5040/tailscale/tailscaled.log	daemon still starting; left running for the next attempt (NOT killed)
+expect_file_has .userdata/tg5040/tailscale/tailscaled.log	waiting on it instead of spawning a duplicate
+expect_trace_absent KILLALL tailscaled

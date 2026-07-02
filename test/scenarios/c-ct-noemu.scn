@@ -1,0 +1,10 @@
+# Task #134: the newest cross-device game may belong to a system THIS device has no
+# emulator pak for — say so honestly instead of eval'ing a missing launch.sh.
+desc Continue dispatcher: no emulator pak for the head's system -> honest message, no launch
+invoke ctpak
+config paired
+sdfile+ Roms/Nintendo 64 (N64)/✓ Kart.n64
+sdtext .userdata/shared/Lodor/continue-head.txt	/Roms/Nintendo 64 (N64)/✓ Kart.n64\tKart\n
+expect_exit 0
+expect_trace PRES timeout=4 msg='No emulator installed for Nintendo 64 (N64)'
+expect_trace_absent EMULAUNCH

@@ -1,0 +1,12 @@
+# Task #124: the post-launch push hook draws nothing (the launcher owns the screen again),
+# so an engine PAIRING_EXPIRED (exit 6) there must still surface — by writing the shared
+# .pairing-expired flag the Tools-menu banner reads. The hook itself must stay exit-0.
+desc post-launch hook (#124): --push-save rc=6 writes the pairing-expired flag silently
+invoke posthook
+config paired
+romarg Roms/Game Boy Advance (GBA)/✓ Zelda.gba
+sdfile+ Roms/Game Boy Advance (GBA)/✓ Zelda.gba
+engine 6|PAIRING_EXPIRED
+expect_exit 0
+expect_trace ENGINE --push-save
+expect_file .userdata/shared/Lodor/.pairing-expired

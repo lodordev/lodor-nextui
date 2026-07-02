@@ -1,0 +1,10 @@
+# B2 counterpart: a TRUE first install (no hook file exists at all) still announces
+# itself — the messages are for real first-time setup, not build updates.
+desc quiet heal: true first install still shows the install messages, log says first_install=1
+invoke launch
+config paired
+seeded
+pick 2|
+expect_exit 0
+expect_trace PRES timeout=-1 msg='Installing Lodor...'
+expect_log hooks self-installed + verified (first_install=1)

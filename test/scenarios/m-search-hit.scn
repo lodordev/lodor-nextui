@@ -1,0 +1,15 @@
+# Parity item #4: Search library = keyboard -> case-insensitive substring over the on-card stub
+# mirror (the whole catalog) -> results with a system suffix -> the SAME gm_actions flow.
+desc Search library: case-insensitive hit opens gm_actions for the mapped game
+config paired
+seeded
+sdfile Roms/Game Boy Advance (GBA)/✘ Zelda.gba
+sdfile+ Roms/Super Nintendo (SFC)/✓ Metroid.sfc
+pick 0|Search library
+kb 0|zEl
+pick 0|✘ Zelda.gba  -  Game Boy Advance (GBA)
+pick 0|Details
+pick 2|
+expect_exit 0
+expect_trace LIST[Search: zEl] rc=0
+expect_trace LIST[Details] rc=2

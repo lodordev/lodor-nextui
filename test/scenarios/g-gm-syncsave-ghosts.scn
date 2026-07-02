@@ -1,0 +1,17 @@
+# Task #124: the engine's --sync-save RESULT carries ghosts=<N> (server save records whose
+# bytes are missing/zero — already excluded from pull/restore). N>0 must surface as a one-line
+# honest note after the sync result, so "where is my old save?" has a visible answer.
+desc Game Manager (#124): sync-save surfaces ghosts=N as a "broken saves on server" note
+config paired
+seeded
+sdfile+ Roms/Game Boy Advance (GBA)/✓ Zelda.gba
+pick 0|Game Manager
+pick 0|Game Boy Advance (GBA)
+pick 0|✓ Zelda.gba
+pick 0|Sync save now
+pick 2|
+engine 0|RESULT pulled=0 pushed=1 ghosts=2
+expect_exit 0
+expect_trace ENGINE --sync-save
+expect_trace PRES timeout=3 msg='Save uploaded to your server'
+expect_trace PRES timeout=3 msg='2 broken save(s) on server - ignored (no data stored)'

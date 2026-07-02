@@ -1,0 +1,14 @@
+# Task #128: a configured pak open SELF-INSTALLS the Game Manager root entry
+# (Emus/LODORGM.pak + Roms/"Game Manager (LODORGM)"/{entry,m3u}) — the heal path
+# for a pak-only update dropped onto an older card. The card starts WITHOUT them.
+desc Game Manager root entry: launch.sh self-installs Emus pak + Roms folder when absent
+config paired
+seeded
+pick 2|
+expect_exit 0
+expect_file Emus/tg5040/LODORGM.pak/launch.sh
+expect_file Roms/Game Manager (LODORGM)/Open Game Manager.gm
+expect_file Roms/Game Manager (LODORGM)/Game Manager (LODORGM).m3u
+expect_log gm root entry: Emus/tg5040/LODORGM.pak installed/refreshed
+# the m3u must point at the entry file NextUI will exists()-check (getFirstDisc)
+expect_file_has Roms/Game Manager (LODORGM)/Game Manager (LODORGM).m3u	Open Game Manager.gm

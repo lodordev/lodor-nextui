@@ -1,0 +1,6 @@
+Lodor Game Manager root entry (task #128; bottom-sorted since task #134).
+This file is NOT a game: selecting "Game Manager" at the bottom of the NextUI library
+launches Emus/<platform>/LODORGM.pak, which opens the Lodor Game Manager.
+It is deliberately non-empty so Lodor's fetch-on-launch hook (which treats 0-byte
+files as cloud stubs) always passes over it. Safe to delete: Tools > Lodor re-creates
+it on next open (remove Emus/<platform>/LODORGM.pak too to hide the root row for good).

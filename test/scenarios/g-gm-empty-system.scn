@@ -1,0 +1,9 @@
+desc Game Manager: a system folder with no game files reports honestly
+config paired
+seeded
+sdfile Roms/Empty (GB)/.media/x.png
+pick 0|Game Manager
+pick 0|Empty (GB)
+pick 2|
+expect_exit 0
+expect_trace PRES timeout=3 msg='No games in Empty (GB) yet'

@@ -1,0 +1,10 @@
+desc Tailscale: Reset & forget runs ts_reset and reports honestly
+config paired
+seeded
+ts present
+tsstatus pending
+pick 0|Tailscale: Reset & forget
+pick 2|
+expect_exit 0
+expect_trace PRES timeout=5 msg='Tailscale reset. Re-onboard via Setup / Re-pair > Tailscale.'
+expect_trace TESTLIB tailscale_down

@@ -1,0 +1,11 @@
+desc lodor-qr crash (139, the shipped bug): fallback runs, never connects, honest bounded abort
+ts present
+timeout 90
+pick 0|Tailscale (sign in with QR)
+tsurl https://login.tailscale.com/a/stub123
+tsstatus pending
+qr 139
+pick 2|
+expect_exit 0
+expect_config_absent
+expect_log lodor-qr render failure (exit 139) - falling back to text URL

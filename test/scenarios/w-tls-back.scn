@@ -1,0 +1,7 @@
+desc B at the TLS pick exits the wizard, nothing written
+pick 0|https (secure, recommended)
+kb 0|romm.example.com
+kb 0|
+pick 2|
+expect_exit 0
+expect_config_absent

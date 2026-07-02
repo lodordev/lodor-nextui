@@ -1,0 +1,9 @@
+desc choosing self-signed adds --insecure to --set-server
+pick 0|https (secure, recommended)
+kb 0|romm.example.com
+kb 0|
+pick 0|Skip verification (self-signed)
+engine 0|RESULT server_set=1
+kb 2|
+expect_exit 0
+expect_trace ENGINE --set-server https://romm.example.com --insecure -> rc=0

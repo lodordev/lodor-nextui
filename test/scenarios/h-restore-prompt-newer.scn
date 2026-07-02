@@ -1,0 +1,15 @@
+# Parity item #1 positive control: a NEWER foreign save (top row not CURRENT) still prompts,
+# titled with the device it came from, and a real pick restores by the mapped save id.
+desc fetch hook: newer foreign save -> picker titled by source device, restore runs
+invoke prehook
+config paired
+romarg Roms/Game Boy Advance (GBA)/✓ Zelda.gba
+sdfile+ Roms/Game Boy Advance (GBA)/✓ Zelda.gba
+engine 0|202\t2026-07-02 08:00\tFlip\t33KB\n101\t2026-07-01 10:00\tBrick\t32KB\tCURRENT
+engine 0|RESULT restored=1
+pick 0|2026-07-02 08:00  -  Flip  -  33KB
+expect_exit 0
+expect_log newest=foreign action=prompted
+expect_trace LIST[Newer save from Flip — restore?] rc=0
+expect_trace ENGINE --restore-save
+expect_trace 202 -> rc=0

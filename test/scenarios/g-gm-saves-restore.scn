@@ -1,0 +1,16 @@
+desc Game Manager: Server saves lists versions, confirms, restores by the mapped save id
+config paired
+seeded
+sdfile+ Roms/Game Boy Advance (GBA)/✓ Zelda.gba
+pick 0|Game Manager
+pick 0|Game Boy Advance (GBA)
+pick 0|✓ Zelda.gba
+pick 0|Server saves
+pick 0|2026-07-01 10:00  -  Brick  -  32KB  (on this device)
+pick 0|Restore this save
+pick 2|
+engine 0|101\t2026-07-01 10:00\tBrick\t32KB\tCURRENT\n99\t2026-06-30 09:00\tFlip\t31KB
+engine 0|RESULT restored=1 staged=0
+expect_exit 0
+expect_trace 101 -> rc=0
+expect_trace PRES timeout=3 msg='Save restored - launch it from the library'

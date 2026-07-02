@@ -1,0 +1,25 @@
+desc Tailscale QR happy path: sign-in completes, tier-1 marked, onboarding completes
+ts present
+timeout 60
+pick 0|Tailscale (sign in with QR)
+pick 0|http (plain)
+tsurl https://login.tailscale.com/a/stub123
+tsstatus pending
+tsstatus pending
+tsstatus connected
+qr 0
+kb 0|romm
+kb 0|
+engine 0|RESULT server_set=1
+kb 0|PAIR123
+engine 0|RESULT paired=1 scopes_ok=1
+kb 0|Brick
+engine 0|RESULT registered=1
+engine 0|RESULT mirrored ok
+pick 2|
+expect_exit 0
+expect_config_has "root_uri": "http://romm"
+expect_config_has socks5_proxy
+expect_config_has "tier": 1
+expect_config_has "token"
+expect_trace QR saw 'connected' in statefile -> exit 0

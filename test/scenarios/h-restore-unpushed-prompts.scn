@@ -1,0 +1,13 @@
+# A3: a newer foreign save exists AND the local save is unpushed progress (LOCAL=unpushed —
+# matches no server revision): prompt, never silently overwrite. Declining launches as-is.
+desc fetch hook: LOCAL=unpushed + newer foreign save -> prompt; decline launches with local save
+invoke prehook
+config paired
+romarg Roms/Game Boy Advance (GBA)/✓ Zelda.gba
+sdfile+ Roms/Game Boy Advance (GBA)/✓ Zelda.gba
+engine 0|202\t2026-07-02 08:00\tFlip\t33KB\n101\t2026-07-01 10:00\tBrick\t32KB\nLOCAL=unpushed
+pick 2|
+expect_exit 0
+expect_trace LIST[Newer save from Flip — restore?]
+expect_trace_absent ENGINE --restore-save
+expect_log newest=foreign action=prompted

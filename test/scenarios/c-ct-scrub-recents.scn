@@ -1,0 +1,10 @@
+# B3: the dispatcher scrubs OUR dummy rows (GM + Continue) from NextUI's Recently Played /
+# Game Switcher on every exit — the switcher dummy is the prime blacked-row suspect from
+# the 0.9.1 Smart Pro field test. Real rows survive verbatim.
+desc Continue dispatcher: recents scrub removes dispatcher dummies, preserves real entries
+invoke ctpak
+config paired
+sdtext .userdata/shared/.minui/recent.txt	/Roms/0) Continue (LODORCT)/Continue.ct\tContinue\n/Roms/Game Manager (LODORGM)/Open Game Manager.gm\n/Roms/Game Boy Advance (GBA)/✓ Mario.gba\n
+expect_exit 0
+expect_file_has .userdata/shared/.minui/recent.txt	✓ Mario.gba
+expect_file_lines .userdata/shared/.minui/recent.txt	1

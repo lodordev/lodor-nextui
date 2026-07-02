@@ -1,0 +1,12 @@
+# POSITIVE CONTROL for the #128 guard on the post-launch hook: a real game that just
+# exited still gets --sync-save + --reconcile — the (LODORGM) guard did not over-match.
+desc push hook: a real game still pushes its save after exit (guard does not over-match)
+invoke posthook
+config paired
+romarg Roms/Game Boy Advance (GBA)/✓ Zelda.gba
+sdfile+ Roms/Game Boy Advance (GBA)/✓ Zelda.gba
+engine 0|RESULT pushed=1 staged=0
+engine 0|RESULT reconciled=0
+expect_exit 0
+expect_trace ENGINE --push-save
+expect_trace ENGINE --reconcile

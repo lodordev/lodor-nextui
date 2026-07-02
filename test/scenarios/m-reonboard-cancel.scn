@@ -1,0 +1,9 @@
+desc Setup / Re-pair backs out without touching the existing pairing
+config paired
+seeded
+pick 0|Setup / Re-pair
+pick 2|
+pick 2|
+expect_exit 0
+expect_config_has "token"
+expect_config_has "root_uri": "https://seed.example.com"

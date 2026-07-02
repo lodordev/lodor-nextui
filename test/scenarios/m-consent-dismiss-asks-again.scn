@@ -1,0 +1,8 @@
+desc C2 consent: B on the residue prompt decides nothing - no mode written, menu still opens
+config paired
+seeded
+sdfile Roms/Game Boy Advance RomM (GBA)/[^] Old Stub (RomM).gba
+pick 2|
+pick 2|
+expect_exit 0
+expect_file_absent .userdata/shared/Lodor/settings.conf

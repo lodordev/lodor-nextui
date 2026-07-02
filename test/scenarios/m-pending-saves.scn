@@ -1,0 +1,12 @@
+# Parity item #2: saves parked offline surface as "Pending saves (N) - upload now" (N = local
+# line count, no network to draw the menu) and the row shells --push-pending honestly.
+desc Pending saves row: live count, --push-pending, honest uploaded report
+config paired
+seeded
+sdfile+ Tools/tg5040/Lodor.pak/pending-saves.txt
+pick 0|Pending saves (1) - upload now
+pick 2|
+engine 0|RESULT pushed=1 total=1 stuck=0
+expect_exit 0
+expect_trace ENGINE --push-pending -> rc=0
+expect_trace PRES timeout=3 msg='Uploaded 1 save(s)'

@@ -1,0 +1,12 @@
+# Parity item #1: the newest server save being CURRENT (already on-device) must NOT prompt —
+# the old behavior opened the restore picker on EVERY launch of every synced game.
+desc fetch hook: newest server save CURRENT -> silent launch, no restore picker
+invoke prehook
+config paired
+romarg Roms/Game Boy Advance (GBA)/✓ Zelda.gba
+sdfile+ Roms/Game Boy Advance (GBA)/✓ Zelda.gba
+engine 0|101\t2026-07-01 10:00\tBrick\t32KB\tCURRENT\n99\t2026-06-30 09:00\tFlip\t31KB
+expect_exit 0
+expect_trace_absent LIST[
+expect_trace ENGINE --list-saves
+expect_log newest=current action=silent

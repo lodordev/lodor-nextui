@@ -1,0 +1,10 @@
+# Parity item #2: NO pending-saves.txt -> the row must not be drawn. The stub's exact-line
+# validation proves absence: picking the row text exits 43 (SELECTION NOT IN LIST) and the
+# menu degrades to the honest one-shot Sync now.
+desc Pending saves row absent when nothing is pending
+config paired
+seeded
+pick 0|Pending saves (1) - upload now
+engine 0|RESULT ok
+expect_exit 0
+expect_trace SELECTION NOT IN LIST: 'Pending saves (1) - upload now'

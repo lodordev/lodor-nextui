@@ -1,0 +1,17 @@
+# task #134 (tier-1 preamble): on a tier-1 config lodor_tier1_up brings tailscaled up from
+# the PERSISTED login (no key, no QR) and is idempotent — the second call REUSES the running
+# daemon (one daemon total). The wifi-debug log carries the honest transport verdict.
+desc tier-1 preamble: lodor_tier1_up brings the tunnel up from persisted login, idempotently
+invoke tslib
+config tier1
+tsdaemon slow:10
+sdfile+ .userdata/tg5040/tailscale/tailscaled.state
+tsdrv tier1up
+tsdrv tier1up
+tsdrv count
+expect_exit 0
+expect_trace TSDRV tier1up rc=0
+expect_trace TSDRV daemons=1
+expect_file_has .userdata/tg5040/tailscale/tailscaled.log tier-1 up: reusing persisted login
+expect_file_has .userdata/tg5040/tailscale/tailscaled.log tailscaled already up; reusing
+expect_file_has Tools/tg5040/Lodor.pak/wifi-debug.log tier1: tunnel up

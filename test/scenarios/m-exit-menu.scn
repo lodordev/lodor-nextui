@@ -1,0 +1,5 @@
+desc MENU key at the client menu exits cleanly
+config paired
+seeded
+pick 3|
+expect_exit 0

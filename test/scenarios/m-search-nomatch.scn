@@ -1,0 +1,10 @@
+desc Search library: no match reports honestly and returns to the menu
+config paired
+seeded
+sdfile Roms/Game Boy Advance (GBA)/✘ Zelda.gba
+pick 0|Search library
+kb 0|xyzzy
+pick 2|
+expect_exit 0
+expect_trace PRES timeout=3 msg='No games match "xyzzy"'
+expect_trace_absent LIST[Search: xyzzy]

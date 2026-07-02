@@ -1,0 +1,13 @@
+# task #134 (Reconnect): with a persisted login and a healthy daemon, Reconnect restarts
+# tailscaled from state and reports the honest success token (connected:<tailnet-ip>).
+# No QR / no re-auth anywhere in this path — the persisted state file is the only input.
+desc tailscale-lib: Reconnect from persisted login reaches Running -> connected:<ip>
+invoke tslib
+tsdaemon slow:10
+sdfile+ .userdata/tg5040/tailscale/tailscaled.state
+tsdrv reconnect
+tsdrv count
+expect_exit 0
+expect_trace TSDRV reconnect rc=0 tok=connected:100.64.0.9
+expect_trace TSDRV daemons=1
+expect_file_has .userdata/tg5040/tailscale/tailscaled.log reconnect: Running again (100.64.0.9)

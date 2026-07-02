@@ -1,0 +1,16 @@
+# task #134 (Reconnect): Reconnect is an explicit RESTART, not a reuse — a live daemon is
+# torn down first (state saved, login untouched) and a fresh one spawned; exactly one
+# daemon exists afterwards (never the "address already in use" pile-up).
+desc tailscale-lib: Reconnect restarts a LIVE daemon (kill old, fresh spawn, one daemon)
+invoke tslib
+tsdaemon slow:10
+sdfile+ .userdata/tg5040/tailscale/tailscaled.state
+tsdrv up
+tsdrv reconnect
+tsdrv count
+expect_exit 0
+expect_trace TSDRV up rc=0
+expect_trace TSDRV reconnect rc=0 tok=connected:100.64.0.9
+expect_trace TSDRV daemons=1
+expect_file_has .userdata/tg5040/tailscale/tailscaled.log ts reconnect ---
+expect_file_has .userdata/tg5040/tailscale/tailscaled.log reconnect: Running again

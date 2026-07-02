@@ -1,0 +1,12 @@
+# task #134 (Reconnect): a fresh daemon that DIES must produce the honest failure token
+# (not-running) with the why captured in the ts log (exit rc + the daemon's own words) —
+# never a fake "Reconnected".
+desc tailscale-lib: Reconnect whose fresh daemon dies -> not-running, why captured
+invoke tslib
+tsdaemon die
+sdfile+ .userdata/tg5040/tailscale/tailscaled.state
+tsdrv reconnect
+expect_exit 0
+expect_trace TSDRV reconnect rc=1 tok=not-running
+expect_file_has .userdata/tg5040/tailscale/tailscaled.log tailscaled EXITED (rc=1) before its socket appeared
+expect_file_has .userdata/tg5040/tailscale/tailscaled.log reconnect: restart did not reach Running

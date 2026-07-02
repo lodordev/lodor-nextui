@@ -1,0 +1,5 @@
+desc minui-list render failure at the network choice exits the wizard cleanly
+ts present
+pick 9|
+expect_exit 0
+expect_config_absent

@@ -1,0 +1,16 @@
+# Task #133: "Sync now" is the FAST sync — saves + light Continue only. The catalog /
+# collections mirror (library-scale minutes on hardware) moved behind the honest
+# "Refresh library (full, slow)" row; running it here is the regression this guards.
+desc Sync now is FAST: push-pending + pull-saves + sync-continue, NEVER the catalog mirror
+config paired
+seeded
+pick 0|Sync now
+pick 2|
+engine 0|RESULT ok
+expect_exit 0
+expect_trace ENGINE --push-pending -> rc=0
+expect_trace ENGINE --pull-saves -> rc=0
+expect_trace ENGINE --sync-continue -> rc=0
+expect_trace_absent ENGINE --mirror-catalog
+expect_trace_absent ENGINE --mirror-collections
+expect_trace PRES timeout=2 msg='Sync complete'

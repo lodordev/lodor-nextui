@@ -1,0 +1,13 @@
+desc engine --set-server failure surfaces SETSERVERFAIL and the step retries to success
+pick 0|http (plain)
+kb 0|romm.local
+kb 0|
+engine 1|SETSERVERFAIL disk full (scripted)
+kb 0|romm.local
+kb 0|
+engine 0|RESULT server_set=1
+kb 2|
+expect_exit 0
+expect_config_has "root_uri": "http://romm.local"
+expect_config_lacks token
+expect_trace PRES timeout=4 msg='SETSERVERFAIL disk full (scripted) - check it and retry'

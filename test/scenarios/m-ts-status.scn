@@ -1,0 +1,9 @@
+desc Tailscale status row reports the live connected state + tailnet IP
+config paired
+seeded
+ts present
+tsstatus connected
+pick 0|Tailscale status
+pick 2|
+expect_exit 0
+expect_trace PRES timeout=5 msg='Tailscale: CONNECTED  100.64.0.9'

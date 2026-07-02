@@ -1,0 +1,65 @@
+#!/bin/sh
+export LODOR_HOST_OS=nextui
+# romm-run <engine-args...> — NextUI (tg5040) bridge to the Lodor sync engine.
+#
+# NextUI OWNS Wi-Fi (the user enables it in Settings). This wrapper RIDES the existing connection: it
+# never brings the radio up and never powers it down. It sets SSL_CERT_FILE + the engine's path env
+# (BASE_PATH / SDCARD_PATH / PLATFORM), then runs lodor-sync from the pak dir so config.json loads
+# CWD-relative. Logs every step to Lodor.pak/romm-run.log.
+SDCARD="${SDCARD_PATH:-/mnt/SDCARD}"
+PLAT="${PLATFORM:-tg5040}"
+PAKD="$SDCARD/Tools/$PLAT/Lodor.pak"
+LIB="$PAKD/lib/romm-sync-lib.sh"
+BIN="$PAKD/lodor-sync"
+LOG="$PAKD/romm-run.log"
+log(){ echo "$(date +'%F %T') $*" >> "$LOG" 2>/dev/null; }
+
+log "=== invoke: $* ==="
+export WIFI_LOG="$PAKD/wifi.log"
+. "$LIB" 2>/dev/null || { log "FATAL: lib source failed: $LIB"; exit 1; }
+
+[ -x "$BIN" ] || { log "FATAL: binary missing/not-exec: $BIN"; exit 3; }
+rm -f /tmp/dl-progress 2>/dev/null
+
+# RIDE the existing NextUI Wi-Fi connection. wifi_acquire only checks link+IP and takes the
+# coordination mutex; it NEVER powers the radio. Honest exit if Wi-Fi is off.
+if ! wifi_acquire fg; then
+	log "wifi_acquire FAILED (wlan0 not connected) -> exit 2"
+	exit 2
+fi
+log "wifi_acquire OK (host=${ROMM_HOST:-unknown})"
+
+# Clock — bounded at 20s; set_clock fast-paths to a no-op once the year is already sane.
+echo "Setting the clock..." > /tmp/romm-phase 2>/dev/null
+( set_clock >/dev/null 2>&1 ) & _cpid=$!
+_w=0; while kill -0 "$_cpid" 2>/dev/null && [ "$_w" -lt 20 ]; do sleep 1; _w=$((_w + 1)); done
+if kill -0 "$_cpid" 2>/dev/null; then
+	kill -9 "$_cpid" 2>/dev/null; killall -9 ntpd sntp 2>/dev/null
+	log "set_clock TIMEOUT after ${_w}s (killed) -> clock=$(date +'%F %T')"
+else
+	log "set_clock done in ${_w}s -> clock=$(date +'%F %T')"
+fi
+
+# CWD = LODOR_CFG_DIR (NextUI shared userdata) so config.json / settings.conf / active-profile.txt
+# load from there; LODOR_PAK_DIR (exported by the lib) keeps engine STATE in the pak. Migrate any
+# legacy in-pak config first (idempotent, non-destructive).
+lodor_migrate_cfg
+# tier-1 Tailscale: bring the userspace tunnel up (reuse QR login) when config.json is a
+# tier-1 host. No-op for LAN / public-URL configs. Non-fatal (engine surfaces its own rc).
+# Ordered BEFORE the reach log (task #134): on tier-1 configs the probe reports the TUNNEL
+# state, so it must read post-bring-up (and migrate must run first so is_tier1 sees the config).
+command -v lodor_tier1_up >/dev/null 2>&1 && lodor_tier1_up
+
+# Resolver guarantee + advisory reachability log (never touches the radio on NextUI).
+wifi_ensure_reachable
+CFGD="${LODOR_CFG_DIR:-$PAKD}"
+log "running: $BIN $* (cwd=$CFGD pak=$PAKD)"
+cd "$CFGD" 2>/dev/null || { log "WARN: cd $CFGD failed; falling back to pak dir"; cd "$PAKD" 2>/dev/null || true; }
+out="$(BASE_PATH="$SDCARD" SDCARD_PATH="$SDCARD" PLATFORM="$PLAT" LODOR_PAK_DIR="$PAKD" "$BIN" "$@" 2>&1)"
+rc=$?
+printf '%s\n' "$out"
+printf '%s\n' "$out" >> "$LOG"
+[ "$1" = "--sync-feed" ] && printf '%s\n' "$out" > /tmp/lodor-feed.txt 2>/dev/null
+log "binary exit rc=$rc"
+wifi_release
+exit $rc

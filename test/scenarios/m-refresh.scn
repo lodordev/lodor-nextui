@@ -1,0 +1,13 @@
+# Task #133: the full mirror lives behind its own honestly-labelled row.
+desc Refresh library (full, slow): catalog + collections mirror, saves untouched
+config paired
+seeded
+pick 0|Refresh library (full, slow)
+pick 2|
+engine 0|RESULT ok
+expect_exit 0
+expect_trace ENGINE --mirror-catalog -> rc=0
+expect_trace ENGINE --mirror-collections -> rc=0
+expect_trace_absent ENGINE --push-pending
+expect_trace_absent ENGINE --pull-saves
+expect_trace PRES timeout=3 msg='Library refreshed'

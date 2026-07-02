@@ -1,0 +1,14 @@
+# A3: server saves exist but NO local save (LOCAL=none — first play of this game on this
+# device): pull the newest silently, no picker. Nothing on the card to lose, nothing to choose.
+desc fetch hook: LOCAL=none + server saves -> newest pulled silently, no prompt
+invoke prehook
+config paired
+romarg Roms/Game Boy Advance (GBA)/✓ Zelda.gba
+sdfile+ Roms/Game Boy Advance (GBA)/✓ Zelda.gba
+engine 0|202\t2026-07-02 08:00\tFlip\t33KB\n101\t2026-07-01 10:00\tBrick\t32KB\nLOCAL=none
+engine 0|RESULT restored=1 staged=0
+expect_exit 0
+expect_trace_absent LIST[
+expect_trace ENGINE --restore-save
+expect_trace 202 -> rc=0
+expect_log newest=foreign action=pulled

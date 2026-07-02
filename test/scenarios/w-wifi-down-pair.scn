@@ -1,0 +1,11 @@
+desc Wi-Fi down: server saves offline, pairing aborts honestly, no trap
+wifi down
+pick 0|https (secure, recommended)
+kb 0|romm.example.com
+kb 0|
+pick 0|Verify TLS certificate (recommended)
+engine 0|RESULT server_set=1
+expect_exit 0
+expect_config_has root_uri
+expect_config_lacks token
+expect_trace PRES timeout=5 msg='Connect Wi-Fi in NextUI Settings first, then re-run Lodor setup'

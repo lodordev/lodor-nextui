@@ -1,0 +1,13 @@
+desc Game Manager: Download now with Wi-Fi down fails honestly before any engine call
+config paired
+seeded
+wifi down
+sdfile Roms/Game Boy Advance (GBA)/✘ Zelda.gba
+pick 0|Game Manager
+pick 0|Game Boy Advance (GBA)
+pick 0|✘ Zelda.gba
+pick 0|Download now
+pick 2|
+expect_exit 0
+expect_trace_absent ENGINE --download
+expect_trace PRES timeout=4 msg='Wi-Fi not connected - enable it in NextUI Settings, then retry'

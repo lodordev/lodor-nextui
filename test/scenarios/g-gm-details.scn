@@ -1,0 +1,11 @@
+desc Game Manager: Details reports name, system, and honest on-card state
+config paired
+seeded
+sdfile Roms/Game Boy Advance (GBA)/✘ Zelda.gba
+pick 0|Game Manager
+pick 0|Game Boy Advance (GBA)
+pick 0|✘ Zelda.gba
+pick 0|Details
+pick 2|
+expect_exit 0
+expect_trace LIST[Details] rc=2

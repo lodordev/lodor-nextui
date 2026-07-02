@@ -1,0 +1,11 @@
+# Parity item #1: SKIP (B) on the newer-save picker launches with the local save, no restore.
+desc fetch hook: declining the newer-save picker never restores
+invoke prehook
+config paired
+romarg Roms/Game Boy Advance (GBA)/✓ Zelda.gba
+sdfile+ Roms/Game Boy Advance (GBA)/✓ Zelda.gba
+engine 0|202\t2026-07-02 08:00\tFlip\t33KB
+pick 2|
+expect_exit 0
+expect_trace LIST[Newer save from Flip — restore?] rc=2
+expect_trace_absent ENGINE --restore-save

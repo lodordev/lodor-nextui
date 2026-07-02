@@ -1,0 +1,11 @@
+desc minui-list missing entirely: client degrades to one-shot Sync now (the FAST one)
+config paired
+seeded
+no-list
+engine 0|RESULT ok
+expect_exit 0
+expect_log minui-list missing - degrading to one-shot Sync now
+expect_trace ENGINE --push-pending -> rc=0
+expect_trace ENGINE --pull-saves -> rc=0
+expect_trace ENGINE --sync-continue -> rc=0
+expect_trace_absent ENGINE --mirror-catalog

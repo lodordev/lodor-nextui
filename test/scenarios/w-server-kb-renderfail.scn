@@ -1,0 +1,5 @@
+desc keyboard render failure at the server address exits the wizard
+pick 0|https (secure, recommended)
+kb 9|
+expect_exit 0
+expect_config_absent

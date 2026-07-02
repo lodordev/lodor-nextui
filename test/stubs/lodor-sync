@@ -1,0 +1,71 @@
+#!/bin/sh
+# lodor-sync stub — the scripted ENGINE. Queue `engine`, line format: <rc>|<stdout>.
+# The stdout payload is printed via %b (so scenarios can embed \t / \n for --sync-feed /
+# --list-profiles rows). On rc=0 the stub MODELS the real engine's config.json contract:
+#   --set-server <url>  -> create/patch config.json with root_uri (preserving other keys)
+#   --pair …  + output contains paired=1     -> add "token"
+#   --register-device … + output registered=1 -> add "device_name"
+# All other modes have no side effects. Every call is traced with full argv.
+set -u
+T="${LODOR_SIM_DIR:?}/trace.log"
+CFG="${LODOR_CFG_DIR:?}/config.json"
+
+line="$(simq engine)" || { echo "ENGINE $* UNDERRUN (no scripted result)" >> "$T"; exit 45; }
+rc="${line%%|*}"
+out="${line#*|}"; [ "$out" = "$line" ] && out=""
+
+echo "ENGINE $* -> rc=$rc out='$out'" >> "$T"
+[ -n "$out" ] && printf '%b\n' "$out"
+
+_url_after_flag() {
+	_want="$1"; shift
+	while [ $# -gt 0 ]; do
+		if [ "$1" = "$_want" ]; then printf '%s' "${2:-}"; return 0; fi
+		shift
+	done
+	return 1
+}
+
+if [ "$rc" = 0 ]; then
+	case " $* " in
+		*" --set-server "*)
+			u="$(_url_after_flag --set-server "$@")"
+			mkdir -p "${LODOR_CFG_DIR}" 2>/dev/null
+			if [ -f "$CFG" ]; then
+				sed -i "s#\"root_uri\": \"[^\"]*\"#\"root_uri\": \"$u\"#" "$CFG"
+			else
+				cat > "$CFG" <<EOF
+{
+  "hosts": [
+    {
+      "root_uri": "$u",
+      "stub": true
+    }
+  ]
+}
+EOF
+			fi
+			;;
+		*" --pair "*)
+			case "$out" in *paired=1*)
+				grep -q '"token"' "$CFG" 2>/dev/null || \
+					sed -i '/"root_uri"/a\      "token": "stub-token",' "$CFG"
+			esac
+			;;
+		*" --register-device "*)
+			case "$out" in *registered=1*)
+				grep -q '"device_name"' "$CFG" 2>/dev/null || \
+					sed -i '/"root_uri"/a\      "device_name": "stub-device",' "$CFG"
+			esac
+			;;
+		*" --download "*)
+			# Model the real engine's fill-in-place: on a reported downloaded=1 the target
+			# stub gains real bytes (launch.sh's honest success check re-stats the file).
+			case "$out" in *downloaded=1*)
+				f="$(_url_after_flag --download "$@")"
+				if [ -n "$f" ]; then mkdir -p "$(dirname "$f")" 2>/dev/null; printf 'DLBYTES\n' > "$f"; fi
+			esac
+			;;
+	esac
+fi
+exit "$rc"

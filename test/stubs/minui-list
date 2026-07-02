@@ -1,0 +1,28 @@
+#!/bin/sh
+# minui-list stub — scripted via the `list` queue. Line format: <rc>|<selected text>.
+#   rc=0 writes the selected text to --write-location AND requires it to be an exact line of
+#   the --file list (catches label/dispatch drift between printf'd menus and case patterns).
+#   rc=2 back, rc=3 menu, anything else = render failure — no selection written (real contract).
+set -u
+T="${LODOR_SIM_DIR:?}/trace.log"
+wl=""; lf=""; title=""
+while [ $# -gt 0 ]; do
+	case "$1" in
+		--write-location) wl="${2:-}"; shift 2 ;;
+		--file)           lf="${2:-}"; shift 2 ;;
+		--title)          title="${2:-}"; shift 2 ;;
+		*) shift ;;
+	esac
+done
+line="$(simq list)" || { echo "LIST[$title] UNDERRUN (no scripted answer)" >> "$T"; exit 42; }
+rc="${line%%|*}"
+sel="${line#*|}"; [ "$sel" = "$line" ] && sel=""
+if [ "$rc" = 0 ]; then
+	if ! grep -qxF "$sel" "$lf" 2>/dev/null; then
+		echo "LIST[$title] SELECTION NOT IN LIST: '$sel' (list: $(tr '\n' ';' < "$lf" 2>/dev/null))" >> "$T"
+		exit 43
+	fi
+	[ -n "$wl" ] && printf '%s\n' "$sel" > "$wl"
+fi
+echo "LIST[$title] rc=$rc sel='$sel'" >> "$T"
+exit "$rc"

@@ -1,0 +1,8 @@
+# Task #134 guard: NextUI's own post-launch hook pass fires with the CONTINUE dummy path —
+# the (LODORCT) tag guard must no-op (no save to push, no marker to reconcile).
+desc push hook: no-op on the Continue root entry (tag guard, no engine calls)
+invoke posthook
+config paired
+romarg Roms/0) Continue (LODORCT)/Continue.ct
+expect_exit 0
+expect_trace_absent ENGINE

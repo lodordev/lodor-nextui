@@ -1,0 +1,43 @@
+#!/bin/sh
+# show2.elf stub — NextUI's stock framebuffer presenter, modelled for the sim (task #120).
+# Real contract (show2-lib.sh): --mode=daemon creates /tmp/show2.fifo and repaints on
+# TEXT:/PROGRESS: lines until QUIT; --mode=simple draws one blocking screen and exits.
+# The stub traces every paint so scenarios can assert the download UI honestly:
+#   SHOW2 daemon text='…'     daemon came up with this initial line
+#   SHOW2 TEXT:… / PROGRESS:… each FIFO update (the real progress path)
+#   SHOW2 simple text='…'     a one-shot screen (ui_simple / ui_error)
+set -u
+T="${LODOR_SIM_DIR:?}/trace.log"
+FIFO="/tmp/show2.fifo"
+mode=""; text=""
+for a in "$@"; do
+	case "$a" in
+		--mode=*) mode="${a#--mode=}" ;;
+		--text=*) text="${a#--text=}" ;;
+	esac
+done
+case "$mode" in
+	daemon)
+		echo "SHOW2 daemon text='$text'" >> "$T"
+		rm -f "$FIFO" 2>/dev/null
+		mkfifo "$FIFO" 2>/dev/null || exit 1
+		# Reopen per writer (each ui_set printf is its own open/close); block on open like
+		# the real daemon. QUIT tears down, exactly show2's daemon contract.
+		while :; do
+			# shellcheck disable=SC2094  # rm-ing the FIFO while its fd is open is the intended
+			# teardown (unlink-on-QUIT, like the real daemon); no data is written through it.
+			while IFS= read -r l; do
+				echo "SHOW2 $l" >> "$T"
+				if [ "$l" = "QUIT" ]; then rm -f "$FIFO"; exit 0; fi
+			done < "$FIFO"
+		done
+		;;
+	simple)
+		echo "SHOW2 simple text='$text'" >> "$T"
+		exit 0
+		;;
+	*)
+		echo "SHOW2 unknown mode: $*" >> "$T"
+		exit 1
+		;;
+esac

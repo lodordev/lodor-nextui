@@ -1,0 +1,17 @@
+# Task #124: a pre-existing pairing-expired flag (set earlier by a hook or menu action) puts
+# the banner in the menu; the first SUCCESSFUL network engine call clears the flag — honest
+# state, no stale banner. Flow: pick the banner (proves it renders), back out of the wizard,
+# run a successful Sync now, exit — flag must be gone.
+desc menu (#124): pairing-expired banner shows from the flag; a successful sync clears it
+config paired
+seeded
+sdfile .userdata/shared/Lodor/.pairing-expired
+pick 0|! Pairing expired - re-pair
+pick 2|
+pick 0|Sync now
+engine 0|RESULT ok
+pick 2|
+expect_exit 0
+expect_trace LIST[RomM server protocol]
+expect_trace PRES timeout=2 msg='Sync complete'
+expect_file_absent .userdata/shared/Lodor/.pairing-expired

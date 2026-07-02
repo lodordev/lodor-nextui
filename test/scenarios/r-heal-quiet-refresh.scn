@@ -1,0 +1,14 @@
+# B2 (the "Installing Lodor..." flash fix): hooks that EXIST but drifted (a build update)
+# are re-synced SILENTLY — no presenter message mid-selection; the log still records the
+# refresh honestly.
+desc quiet heal: drifted hooks re-sync silently (no install flash), log says first_install=0
+invoke launch
+config paired
+seeded
+sdtext .userdata/tg5040/.hooks/pre-launch.d/10-lodor-fetch.sync.sh	#!/bin/sh\n# old build\n
+pick 2|
+expect_exit 0
+expect_trace_absent msg='Installing Lodor...'
+expect_trace_absent msg='Lodor installed.'
+expect_log hooks self-installed + verified (first_install=0)
+expect_file_has .userdata/tg5040/.hooks/pre-launch.d/10-lodor-fetch.sync.sh	LODOR_HOST_OS=nextui

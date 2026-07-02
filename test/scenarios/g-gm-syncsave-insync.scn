@@ -1,0 +1,13 @@
+# A2: reason=in-sync is the ONLY 0/0 shape that may say "already in sync" — and it may.
+desc Game Manager: sync-save reason=in-sync -> "Save already in sync"
+config paired
+seeded
+sdfile+ Roms/Game Boy Advance (GBA)/✓ Zelda.gba
+pick 0|Game Manager
+pick 0|Game Boy Advance (GBA)
+pick 0|✓ Zelda.gba
+pick 0|Sync save now
+pick 2|
+engine 0|RESULT pulled=0 pushed=0 ghosts=0 reason=in-sync
+expect_exit 0
+expect_trace PRES timeout=2 msg='Save already in sync'

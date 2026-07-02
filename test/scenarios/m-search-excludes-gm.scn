@@ -1,0 +1,10 @@
+# The Game Manager's own root-entry folder is a launcher affordance, not a game — search must
+# never surface its dummy entry ("Manager" would match "Open Game Manager.gm" otherwise).
+desc Search library: the LODORGM folder is excluded from results
+config paired
+seeded
+pick 0|Search library
+kb 0|Manager
+pick 2|
+expect_exit 0
+expect_trace PRES timeout=3 msg='No games match "Manager"'

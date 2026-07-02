@@ -1,0 +1,13 @@
+# STEP 0a: a daemon that EXITS during startup is a DIFFERENT failure from a slow one —
+# the lib must say so honestly: capture the exit code and leave the daemon's own stderr
+# (already redirected into the ts log by the spawn) as the WHY. The old code's only
+# message for both shapes was "tailscaled socket never appeared".
+desc tailscale-lib: daemon death during startup captures rc + its own output, fails honestly
+invoke tslib
+tsdaemon die
+tsdrv up
+expect_exit 0
+expect_trace TSDRV up rc=1
+expect_file_has .userdata/tg5040/tailscale/tailscaled.log	tailscaled EXITED (rc=1) before its socket appeared
+expect_file_has .userdata/tg5040/tailscale/tailscaled.log	fake tailscaled: scripted death
+expect_file_has .userdata/tg5040/tailscale/tailscaled.log	FAKE-TAILSCALED start mode=die

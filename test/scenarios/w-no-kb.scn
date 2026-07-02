@@ -1,0 +1,6 @@
+desc minui-keyboard missing: wizard aborts honestly instead of dying
+no-kb
+pick 0|https (secure, recommended)
+expect_exit 0
+expect_config_absent
+expect_trace PRES timeout=4 msg='On-screen keyboard missing - reinstall the Lodor pak'

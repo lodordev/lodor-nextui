@@ -1,0 +1,10 @@
+# Task #128: pressing the root entry on an UNPAIRED card runs the onboarding wizard
+# (same gate as the Tools entry); cancelling exits honestly with no config written.
+desc Game Manager root entry: unpaired card routes to the wizard, cancel exits clean
+invoke emupak
+config none
+# wizard first list (server-address step) -> back/cancel
+pick 2|
+expect_exit 0
+expect_config_absent
+expect_trace_absent LIST[Game Manager]

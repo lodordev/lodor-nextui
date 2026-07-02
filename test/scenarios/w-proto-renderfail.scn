@@ -1,0 +1,4 @@
+desc render failure at the protocol pick exits the wizard
+pick 9|
+expect_exit 0
+expect_config_absent

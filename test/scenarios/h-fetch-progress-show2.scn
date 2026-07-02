@@ -1,0 +1,15 @@
+# Task #120: the fetch hook renders REAL download progress via show2.elf. Deterministic
+# assertions: the daemon comes up with the marker-free game name (task #126 display rule),
+# and 100% is painted ONLY after the honest success check (rc=0 AND real bytes on card).
+desc fetch hook (#120): download progress renders via show2 — daemon up, 100% only after verified bytes
+invoke prehook
+config paired
+romarg Roms/Game Boy Advance (GBA)/✘ Zelda.gba
+sdfile Roms/Game Boy Advance (GBA)/✘ Zelda.gba
+engine 0|RESULT downloaded=1
+expect_exit 0
+expect_trace ENGINE --download
+expect_trace SHOW2 daemon text='Downloading Zelda…'
+expect_trace SHOW2 TEXT:Downloaded ✓
+expect_trace SHOW2 PROGRESS:100
+expect_file_has Roms/Game Boy Advance (GBA)/✘ Zelda.gba	DLBYTES

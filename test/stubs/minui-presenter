@@ -1,0 +1,14 @@
+#!/bin/sh
+# minui-presenter stub — records the message and returns instantly (a real --timeout N call
+# blocks N seconds on-device; blocking here would only slow the sim down).
+set -u
+msg=""; to=""
+while [ $# -gt 0 ]; do
+	case "$1" in
+		--message) msg="${2:-}"; shift 2 ;;
+		--timeout) to="${2:-}"; shift 2 ;;
+		*) shift ;;
+	esac
+done
+echo "PRES timeout=$to msg='$msg'" >> "${LODOR_SIM_DIR:?}/trace.log"
+exit 0

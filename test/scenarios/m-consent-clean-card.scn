@@ -1,0 +1,7 @@
+desc C2 consent: clean card (no separate-era residue) silently writes mirror_mode=merge, no prompt
+config paired
+seeded
+pick 2|
+expect_exit 0
+expect_file_has .userdata/shared/Lodor/settings.conf	mirror_mode=merge
+expect_trace_absent Where should RomM games go?

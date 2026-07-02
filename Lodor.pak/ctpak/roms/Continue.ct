@@ -1,0 +1,7 @@
+Lodor Continue root entry (task #134).
+This file is NOT a game: selecting "Continue" at the top of the NextUI library
+launches Emus/<platform>/LODORCT.pak, which resumes your most recent game across
+all your devices (downloading it first if it is not on this card yet).
+It is deliberately non-empty so Lodor's fetch-on-launch hook (which treats 0-byte
+files as cloud stubs) always passes over it. Safe to delete: Tools > Lodor
+re-creates it.

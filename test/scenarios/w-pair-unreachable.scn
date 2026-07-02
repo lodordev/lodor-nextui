@@ -1,0 +1,12 @@
+desc unreachable server (rc=3) at pairing: honest message, retry offered, B exits
+pick 0|https (secure, recommended)
+kb 0|romm.example.com
+kb 0|
+pick 0|Verify TLS certificate (recommended)
+engine 0|RESULT server_set=1
+kb 0|PAIR123
+engine 3|
+kb 2|
+expect_exit 0
+expect_config_lacks token
+expect_trace PRES timeout=5 msg='Couldn't reach your server - check the address and Wi-Fi'

@@ -1,0 +1,12 @@
+# task #134 (tier-1 preamble): lodor_tier1_up must NEVER block or spawn anything for a
+# plain LAN / public-URL config — no socks5_proxy in config.json = silent no-op, rc 0.
+desc tier-1 preamble: lodor_tier1_up is a silent no-op on a non-tier-1 (LAN) config
+invoke tslib
+config paired
+tsdaemon slow:10
+sdfile+ .userdata/tg5040/tailscale/tailscaled.state
+tsdrv tier1up
+tsdrv count
+expect_exit 0
+expect_trace TSDRV tier1up rc=0
+expect_trace TSDRV daemons=0

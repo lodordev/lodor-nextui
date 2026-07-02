@@ -1,0 +1,13 @@
+# A2: unpushed local progress is never overwritten — the push leg uploads it and the GM says so.
+desc Game Manager: sync-save reason=unpushed-local pushed=1 -> "your newer save was uploaded"
+config paired
+seeded
+sdfile+ Roms/Game Boy Advance (GBA)/✓ Zelda.gba
+pick 0|Game Manager
+pick 0|Game Boy Advance (GBA)
+pick 0|✓ Zelda.gba
+pick 0|Sync save now
+pick 2|
+engine 0|RESULT pulled=0 pushed=1 ghosts=0 reason=unpushed-local
+expect_exit 0
+expect_trace PRES timeout=3 msg='Your newer save was uploaded to the server'

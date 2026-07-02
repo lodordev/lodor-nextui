@@ -1,0 +1,9 @@
+desc Box art toggle: on -> off writes fetch_covers=off, honest about kept art
+config paired
+seeded
+settings fetch_covers=on
+pick 0|Box art: All covers (on refresh)
+pick 2|
+expect_exit 0
+expect_file_has .userdata/shared/Lodor/settings.conf fetch_covers=off
+expect_trace PRES timeout=4 msg='Only downloaded games fetch box art now. Art already on the card is kept.'
