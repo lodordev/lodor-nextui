@@ -232,7 +232,7 @@ set_clock() {
 	if command -v ntpd >/dev/null 2>&1 && ntpd -q -n -p 162.159.200.123 >/dev/null 2>&1; then _persist_clock; return 0; fi
 	if command -v sntp >/dev/null 2>&1 && sntp -sS 162.159.200.123 >/dev/null 2>&1; then _persist_clock; return 0; fi
 	if [ -n "${ROMM_HOST:-}" ]; then
-		d="$(wget -S -q -O /dev/null "http://$ROMM_HOST/" 2>&1 | sed -n 's/^ *Date: //p' | head -1)"
+		d="$(wget -T 8 -S -q -O /dev/null "http://$ROMM_HOST/" 2>&1 | sed -n 's/^ *Date: //p' | head -1)"
 		if [ -n "$d" ] && date -s "$d" >/dev/null 2>&1; then _persist_clock; return 0; fi
 	fi
 	return 1

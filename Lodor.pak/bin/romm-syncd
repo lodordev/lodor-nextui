@@ -25,6 +25,19 @@ log() { echo "$(date +'%F %T') $1" >> "$LOG"; }
 
 has_pending() { [ -s "$PENDING_FILE" ]; }
 
+# sc_bounded — set_clock, HARD-BOUNDED (mirrors romm-run bin guard). A dead RTC plus a half-open
+# host makes ntpd/sntp/wget block with no timeout; unguarded here that silently freezes the whole
+# poll loop (background sync dies until reboot). Background it, kill at 20s, reap the probes.
+sc_bounded() {
+	( set_clock >/dev/null 2>&1 ) & _scp=$!
+	_scw=0; while kill -0 "$_scp" 2>/dev/null && [ "$_scw" -lt 20 ]; do sleep 1; _scw=$((_scw + 1)); done
+	if kill -0 "$_scp" 2>/dev/null; then
+		kill -9 "$_scp" 2>/dev/null; killall -9 ntpd sntp wget 2>/dev/null
+		log "set_clock TIMEOUT after ${_scw}s (killed)"; return 1
+	fi
+	return 0
+}
+
 # First-run library-seed sentinel (shared with launch.sh's maybe_seed_library). Until it exists, the
 # library is empty and must be populated once; either the Tool or this daemon may do it first.
 SEED_SENTINEL="$PAK/.library-seeded"
@@ -39,7 +52,7 @@ seed_library_once() {
 	_radio_ready  || return 0          # ride existing Wi-Fi only
 	wifi_acquire bg; sacq=$?
 	[ "$sacq" -eq 0 ] || { [ "$sacq" -eq 2 ] && log "seed: wifi busy; retry next poll"; return 0; }
-	set_clock || log "seed: clock set failed"
+	sc_bounded || log "seed: clock set failed"
 	run_sync --mirror-catalog     >> "$LOG" 2>&1; sm1=$?
 	run_sync --mirror-collections >> "$LOG" 2>&1; sm2=$?
 	wifi_release
@@ -86,7 +99,7 @@ while :; do
 	[ "$mode" = full ] && last_attempt=$now
 	last_flush=$now
 	if [ "$acq" -eq 0 ]; then
-		set_clock || log "clock set failed"
+		sc_bounded || log "clock set failed"
 		run_sync --push-pending >> "$LOG" 2>&1; rc=$?
 		if [ "$mode" = full ]; then
 			# Charging-interval extras (task #132/#133): light cross-device Continue +
