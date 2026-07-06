@@ -35,7 +35,7 @@ echo "== building arm64 engine from $(cd "$MONO" && git rev-parse --short HEAD) 
 ENG="$MONO/engine/.build-nextui-arm64-$(cd "$MONO" && git rev-parse --short HEAD)"
 docker run --rm -v "$MONO/engine":/src -w /src \
   -e GOCACHE=/tmp/gc -e GOPATH=/tmp/gp -e CGO_ENABLED=0 -e GOOS=linux -e GOARCH=arm64 \
-  golang:1.25 go build -trimpath -ldflags="-s -w" -o "/src/$(basename "$ENG")" ./cmd/lodor-sync
+  golang:1.25 go build -trimpath -ldflags="-s -w -X lodor/buildinfo.Version=$(cat "$MONO/VERSION")" -o "/src/$(basename "$ENG")" ./cmd/lodor-sync
 file "$ENG" | grep -q aarch64 || { echo "FATAL: engine is not arm64"; exit 1; }
 
 echo "== building aarch64 QR helper (lodor-qr) in $TCIMG =="

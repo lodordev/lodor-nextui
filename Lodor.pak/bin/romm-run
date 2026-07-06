@@ -52,6 +52,14 @@ command -v lodor_tier1_up >/dev/null 2>&1 && lodor_tier1_up
 
 # Resolver guarantee + advisory reachability log (never touches the radio on NextUI).
 wifi_ensure_reachable
+
+# Save-sync modes hard-require a device_id — heal a paired-but-unregistered (card-cloned /
+# preseeded) config first, ported from Knulli (6b29c2c). Only here, where the connection is
+# already established; the run below proceeds regardless of the outcome.
+case "$1" in
+	--sync-save|--push-save|--push-pending|--pull-saves|--restore-save) lodor_ensure_device ;;
+esac
+
 CFGD="${LODOR_CFG_DIR:-$PAKD}"
 log "running: $BIN $* (cwd=$CFGD pak=$PAKD)"
 cd "$CFGD" 2>/dev/null || { log "WARN: cd $CFGD failed; falling back to pak dir"; cd "$PAKD" 2>/dev/null || true; }

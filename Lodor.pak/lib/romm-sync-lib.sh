@@ -284,6 +284,32 @@ lodor_tier1_up() {
 	return 0
 }
 
+# lodor_ensure_device — quiet first-run heal (ported from Knulli, 6b29c2c): a preseeded or
+# card-cloned config carries a token but NO device state (the release device-state strip is
+# the contract), and every save-sync engine mode hard-requires a device_id — so saves would
+# silently never sync until a full re-onboarding. When the config is paired but unregistered
+# AND the caller has already established the connection, register ONCE under this lane's
+# stock name (default_devname's PLAT map — the wizard's keyboard default). "Registered" =
+# device_id OR device_name present (the engine's --register-device writes both; the strip
+# removes both). Callers proceed regardless of the outcome: on failure the engine keeps
+# refusing loudly (honest), and the next save-sync call retries.
+lodor_ensure_device() {
+	[ -f "$LODOR_CFG_DIR/config.json" ] || return 1
+	grep -q -e '"device_id"' -e '"device_name"' "$LODOR_CFG_DIR/config.json" 2>/dev/null && return 0
+	grep -q '"token"' "$LODOR_CFG_DIR/config.json" 2>/dev/null || return 1
+	case "$PLAT" in
+		tg5040) _edn="TrimUI Brick" ;;
+		tg5050) _edn="TrimUI Smart Pro" ;;
+		*)      _edn="NextUI Device" ;;
+	esac
+	_wlog "paired-but-unregistered config — registering device as: $_edn"
+	_pset "First run — registering this device..."
+	( cd "$LODOR_CFG_DIR" 2>/dev/null || exit 1
+	  BASE_PATH="$SDCARD" SDCARD_PATH="$SDCARD" PLATFORM="$PLAT" LODOR_PAK_DIR="$ROMM_PAK_DIR" \
+	  	"$SYNC_BIN" --register-device "$_edn" ) >> "$_WIFI_DBG" 2>&1 \
+		|| _wlog "device registration failed (will retry on the next save-sync call)"
+}
+
 # --- run the sync binary -----------------------------------------------------
 # Runs from the pak dir so the engine reads config.json (CWD-relative). The clean engine reads ONLY
 # BASE_PATH / SDCARD_PATH / PLATFORM for path resolution (no CFW / IS_MIYOO — those are dead in the
@@ -297,6 +323,11 @@ run_sync() {
 	# configs, so bring it up (or reuse it) first; migrate first so is_tier1 reads the real config.
 	lodor_tier1_up
 	wifi_ensure_reachable || true
+	# Save-sync modes hard-require a device_id — heal a paired-but-unregistered config first
+	# (the connection is already established above). Proceed regardless of the outcome.
+	case "${1:---push-pending}" in
+		--sync-save|--push-save|--push-pending|--pull-saves|--restore-save) lodor_ensure_device ;;
+	esac
 	# CWD = LODOR_CFG_DIR so the engine loads config.json / settings.conf / active-profile.txt from
 	# NextUI's shared userdata; LODOR_PAK_DIR (already exported) keeps engine STATE in the pak.
 	( cd "$LODOR_CFG_DIR" || exit 2

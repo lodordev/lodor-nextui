@@ -886,7 +886,67 @@ do_sync_now() {
 	_rc=0; for _r in $_r1 $_r2 $_r3; do [ "$_r" -gt "$_rc" ] && _rc=$_r; done
 	note_net_rc "$_rc"
 	if [ "$_rc" = 0 ]; then ui_msg_timed "Sync complete" 2; else ui_msg_timed "$(diagnose "$_rc")" 4; fi
+	[ "$_rc" = 0 ] && maybe_check_updates
 	return "$_rc"
+}
+
+# ---- self-update notices (store lane) -----------------------------------------------------------
+# On NextUI, updates INSTALL through the first-party Pak Store — Lodor only CHECKS and points
+# there (no bespoke apply on this lane; the store's extract-over update honors update_ignore).
+# --check-update is engine-side (versions.json, gh-pages; honest exit 3 = unreachable). The SHELL
+# owns every settings.conf stamp (update_available / update_last_check) — single-writer, same as
+# mirror_mode. The engine only ever READS update_channel from settings.conf.
+current_engine_version() {
+	"$SYNC_BIN" --version 2>/dev/null | awk '{print $2}'
+}
+# stamp_update_state <RESULT line> — update_available is set from update=1, CLEARED on update=0
+# (an installed update self-clears the badge on the next check); last_check stamps on every
+# successful check so the once-a-day gate below works.
+stamp_update_state() {
+	_ulatest="$(printf '%s\n' "$1" | sed -n 's/.*latest=\([^ ]*\).*/\1/p')"
+	case "$1" in
+		*"update=1"*) set_setting update_available "$_ulatest" ;;
+		*)            set_setting update_available "" ;;
+	esac
+	set_setting update_last_check "$(date +%s)"
+}
+do_check_updates() {
+	require_wifi || return 1
+	ui_msg "Checking for updates..."
+	run_net --check-update
+	_url="$(printf '%s\n' "$NET_OUT" | grep -a '^RESULT update=' | tail -1)"
+	if [ "$NET_RC" != 0 ] || [ -z "$_url" ]; then
+		ui_msg_timed "Couldn't reach the update server - this check needs internet, not just your RomM server" 5
+		return 1
+	fi
+	stamp_update_state "$_url"
+	_ulatest="$(printf '%s\n' "$_url" | sed -n 's/.*latest=\([^ ]*\).*/\1/p')"
+	_ucur="$(printf '%s\n' "$_url" | sed -n 's/.*current=\([^ ]*\).*/\1/p')"
+	case "$_url" in
+		*"update=1"*)
+			_unotes="$(printf '%s\n' "$NET_OUT" | grep -a "^NOTES" | tail -1 | cut -f2-)"
+			ui_msg_timed "Lodor $_ulatest is out (you have $_ucur). Install it from the Pak Store.${_unotes:+ New: $_unotes}" 8
+			;;
+		*)
+			ui_msg_timed "You're up to date ($_ucur)" 3
+			;;
+	esac
+	return 0
+}
+# maybe_check_updates — opportunistic tail of a good Sync now: the radio is already up, so the
+# manifest GET is nearly free. At most once a day; EVERY failure is silent (a background path
+# never nags and never touches the radio). Shows an honest one-liner because it does add a
+# beat of wait after "Sync complete" — no invisible stalls.
+maybe_check_updates() {
+	_ulast="$(sed -n 's/^update_last_check=//p' "$SETTINGS" 2>/dev/null | head -1)"
+	case "$_ulast" in ''|*[!0-9]*) _ulast=0 ;; esac
+	[ $(($(date +%s) - _ulast)) -lt 86400 ] && return 0
+	ui_msg "Checking for updates..."
+	run_net --check-update
+	_url="$(printf '%s\n' "$NET_OUT" | grep -a '^RESULT update=' | tail -1)"
+	[ "$NET_RC" = 0 ] && [ -n "$_url" ] && stamp_update_state "$_url"
+	ui_clear
+	return 0
 }
 
 # lib_counts — on-card library totals (games/systems) from the stub mirror, which IS the whole
@@ -1541,6 +1601,10 @@ run_menu() {
 		_nq="$(count_lines "$PAKDIR/download-queue.txt")"
 		_ulbl="$(active_profile_label)"
 		_free="$(sd_free)"
+		# update badge: a LOCAL settings.conf read + one local --version exec, no network. The
+		# row self-retires once the Pak Store installed the version it names.
+		_uav="$(sed -n 's/^update_available=//p' "$SETTINGS" 2>/dev/null | head -1)"
+		[ -n "$_uav" ] && [ "$_uav" = "$(current_engine_version)" ] && _uav=""
 		{
 			# PAIRING-EXPIRED banner (task #124): flagged by any engine rc=6 (menu action, hook,
 			# daemon-adjacent paths writing the same flag). Top row, one press into the re-pair
@@ -1556,9 +1620,13 @@ run_menu() {
 			[ "$_nq" -gt 0 ] 2>/dev/null && printf 'Download queue (%s)\n' "$_nq"
 			printf 'Download BIOS\n'
 			printf 'Recent activity\n'
+			# a found update surfaces at the top of the housekeeping block; install happens in
+			# the Pak Store (store lane — Lodor never swaps its own pak on NextUI)
+			[ -n "$_uav" ] && printf 'Update available (%s) - Pak Store\n' "$_uav"
 			printf 'Switch user (%s)\n' "$_ulbl"
 			printf '%s\n' "$_bclbl"
 			printf '%s\n' "$_cxlbl"
+			printf 'Check for updates\n'
 			printf 'Setup / Re-pair\n'
 			printf 'Remove Lodor from this card\n'
 			if ts_available; then
@@ -1592,6 +1660,8 @@ run_menu() {
 			"Recent activity")      do_sync_feed ;;
 			"Switch user ("*)       do_switch_user ;;
 			"Box art:"*)            toggle_fetch_covers "$_bc" ;;
+			"Update available ("*)  do_check_updates ;;
+			"Check for updates")    do_check_updates ;;
 			"Setup / Re-pair")      do_reonboard ;;
 			"Remove Lodor from"*)   do_uninstall_lodor ;;
 			"Tailscale status")     do_ts_status ;;
