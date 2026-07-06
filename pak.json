@@ -1,14 +1,21 @@
 {
   "name": "Lodor",
-  "version": "0.9.1-beta",
+  "version": "0.9.6",
   "type": "TOOL",
-  "description": "RomM thin-client — whole-library stubs, download-on-launch, two-way save sync",
+  "description": "RomM thin-client \u2014 whole-library stubs, download-on-launch, two-way save sync",
   "author": "lodordev",
   "repo_url": "https://github.com/lodordev/lodor-nextui",
   "release_filename": "Lodor.pak.zip",
-  "platforms": ["tg5040", "tg5050"],
-  "update_ignore": ["config.json", "settings.conf"],
+  "platforms": [
+    "tg5040",
+    "tg5050"
+  ],
+  "update_ignore": [
+    "config.json",
+    "settings.conf"
+  ],
   "changelog": {
-    "0.9.1-beta": "First public beta."
+    "0.9.1-beta": "First public beta.",
+    "0.9.6": "Self-update notices (store badge + daily check after a good sync), pairing self-heal for preseeded/cloned cards, Tailscale QR sign-in no longer times out, sync engine 0.9.6 (save-integrity + cross-device Recently Played interop)."
   }
 }
