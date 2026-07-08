@@ -38,6 +38,17 @@ BIN="$PAK/lodor-sync"
 # still matches the launched ROM (the engine uploads the CANONICAL marker-free name — task #126).
 "$RUN" --push-save "$HOOK_ROM_PATH" >/dev/null 2>&1
 _ssrc=$?
+
+# Handoff v1: push new save STATES after the battery save. Same romm-run funnel
+# (it gates on live Wi-Fi and owns the device self-heal), additive-only, dedup
+# in the engine, dark without statecores.json. Never blocks the hook chain and
+# NEVER touches _ssrc — the pairing-expired flag below reads push-save's rc
+# (harness h-push-pairing-expired caught the first version shadowing it).
+"$RUN" --push-states "$HOOK_ROM_PATH" >/dev/null 2>&1 || true
+# Drain any states queued while offline (an offline --push-states auto-queues
+# into pending-states.txt, so this lane needs no explicit --queue-state call).
+# Same funnel, still never touches _ssrc.
+"$RUN" --push-pending-states >/dev/null 2>&1 || true
 # PAIRING_EXPIRED (task #124): engine exit 6 = token revoked/expired. This hook draws nothing
 # (the launcher owns the screen again), so flag it for the Tools-menu banner instead.
 if [ "$_ssrc" = 6 ]; then
