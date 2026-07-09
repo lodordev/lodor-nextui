@@ -64,6 +64,31 @@ for PLAT in tg5040 tg5050; do
   cp "$PAKSRC/config.json.template" "$D/config.json.template"
   cp "$ENG" "$D/lodor-sync"
   cp "$CERT" "$D/certs/ca-certificates.crt"
+  # Handoff manifests (#27) — LIGHTS statesync on NextUI. Both tg5040/tg5050 are arm64.
+  # dir = minarch {TAG}-{core} under .userdata/shared/ (verified off NextUI source:
+  # ma_core.c states_dir = SHARED_USERDATA/<tag>-<corename>; note SFC not SNES). Keys =
+  # RomM fs_slug verified live (genesis, NOT megadrive; mastersystem, NOT sms). NextUI
+  # runs snes9x (full) for SNES — matches Knulli/Android/muOS(post-#11) arm64 snes9x
+  # club, not the Miyoo armhf snes9x2005_plus (SNES is within-bitness-group by design).
+  #   GBA=gpsp matches LodorOS; muOS/Knulli/Android run mgba → cross-lane orphan, flagged
+  #   fleet-wide. GG/SMS/MD=picodrive matches LodorOS-my355/Knulli; muOS runs
+  #   genesis_plus_gx → that arm64 split is muOS-#11's flag.
+  #   PSX/N64 (#14/#5/#6): NOT emitted for NextUI. NextUI's PSX (pcsx_rearmed) and N64
+  #   (mupen64plus_next) core assignment through the state-producing minarch path is NOT
+  #   confirmed from source — declaring them unverified would fake a capability. Left out
+  #   honestly and FLAGGED for on-device confirmation (see flagged-cells list); add here
+  #   iff a tg5040/tg5050 check shows those systems run those libretro cores via minarch.
+  sh "$MONO/release/mkstatecores.sh" --frontend nextui --arch arm64 --out "$D/statecores.json" \
+    nes=fceumm:FC-fceumm gb=gambatte:GB-gambatte gbc=gambatte:GBC-gambatte \
+    gba=gpsp:GBA-gpsp gamegear=picodrive:GG-picodrive \
+    mastersystem=picodrive:SMS-picodrive genesis=picodrive:MD-picodrive \
+    snes=snes9x:SFC-snes9x >&2 || { echo "nextui statecores emit failed" >&2; exit 1; }
+  # D8 whitelist (fix #2 — the fleet-UNIFORM class list; identical on every lane).
+  sh "$MONO/release/mkstatecompat.sh" --out "$D/state-compat.json" \
+    fceumm:armhf,arm64 gambatte:armhf,arm64 picodrive:armhf,arm64 \
+    gpsp:armhf gpsp:arm64 snes9x2005_plus:armhf snes9x2005_plus:arm64 \
+    snes9x:arm64 mgba:arm64 genesis_plus_gx:arm64 >&2 \
+    || { echo "nextui statecompat emit failed" >&2; exit 1; }
   cp "$ASSETS/bin/7zz" "$D/bin/7zz"
   # arm64 host-render tools. The MERGED pak now needs minui-keyboard too (onboarding text entry) —
   # it used to live only in the deleted Lodor Setup.pak. tg5050 reuses the tg5040 build (same arm64 +
