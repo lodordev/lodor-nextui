@@ -101,6 +101,11 @@ while :; do
 	if [ "$acq" -eq 0 ]; then
 		sc_bounded || log "clock set failed"
 		run_sync --push-pending >> "$LOG" 2>&1; rc=$?
+		# Handoff v1: also drain the offline pending-STATES queue (savestates). Safe here —
+		# we are inside the acq==0 (Wi-Fi already up/reachable) branch, so this rides the
+		# existing connection and NEVER brings the radio up itself. Best-effort — a stuck
+		# state must never wedge the save flush above.
+		run_sync --push-pending-states >> "$LOG" 2>&1 || true
 		if [ "$mode" = full ]; then
 			# Charging-interval extras (task #132/#133): light cross-device Continue +
 			# Recently Played refresh. Local-index only — never the catalog mirror.
@@ -108,7 +113,7 @@ while :; do
 			log "continue refresh rc=$crc"
 		fi
 		wifi_release
-		log "$mode flush rc=$rc"
+		log "$mode flush (saves+states) rc=$rc"
 	else
 		# acq=1 -> Wi-Fi not connected (NextUI Wi-Fi is off). Back off; the user owns the radio.
 		log "Wi-Fi not connected (NextUI owns it); back off"

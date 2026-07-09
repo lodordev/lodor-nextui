@@ -879,6 +879,10 @@ do_sync_now() {
 	fi
 	ui_msg "Flushing pending saves..."
 	"$RUN" --push-pending >> "$LOG" 2>&1; _r1=$?
+	# Manual Sync now also force-pushes ALL local savestates (not just the pending queue),
+	# so a hands-on sync guarantees every on-card state is up on the server. Best-effort —
+	# --push-all-states is the wide state mode; a state hiccup must not fail the save sync.
+	"$RUN" --push-all-states >> "$LOG" 2>&1 || true
 	ui_msg "Pulling latest saves..."
 	"$RUN" --pull-saves >> "$LOG" 2>&1; _r2=$?
 	ui_msg "Updating Continue..."
