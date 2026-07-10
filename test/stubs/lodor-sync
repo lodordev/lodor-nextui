@@ -66,6 +66,26 @@ EOF
 				if [ -n "$f" ]; then mkdir -p "$(dirname "$f")" 2>/dev/null; printf 'DLBYTES\n' > "$f"; fi
 			esac
 			;;
+		*" --fetch-next-disc "*)
+			# Model the engine's disc-1-first next-disc fetch (lodor#7): on a reported
+			# fetched=1, the FIRST missing/0-byte disc the .m3u references gains real bytes
+			# (m3u-relative lines, same resolution the real engine writes).
+			case "$out" in *fetched=1*)
+				m="$(_url_after_flag --fetch-next-disc "$@")"
+				if [ -n "$m" ] && [ -f "$m" ]; then
+					_md="$(dirname "$m")"
+					while IFS= read -r _ln || [ -n "$_ln" ]; do
+						[ -n "$_ln" ] || continue
+						case "$_ln" in /*) _dp="$_ln" ;; *) _dp="$_md/$_ln" ;; esac
+						if [ ! -s "$_dp" ]; then
+							mkdir -p "$(dirname "$_dp")" 2>/dev/null
+							printf 'DISCBYTES\n' > "$_dp"
+							break
+						fi
+					done < "$m"
+				fi
+			esac
+			;;
 	esac
 fi
 exit "$rc"

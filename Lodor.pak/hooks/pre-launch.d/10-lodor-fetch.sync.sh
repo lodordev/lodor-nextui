@@ -88,7 +88,10 @@ trap 'ui_stop; killall minui-presenter >/dev/null 2>&1 || true; killall minui-li
 
 # --------------------------------------------------------------------------------------------------
 # 1. DOWNLOAD-ON-LAUNCH — only for a 0-byte stub. A real (already-downloaded) ROM is left alone.
+#    Multi-disc (lodor#7 disc-1-first): this lands DISC 1 ONLY + the full .m3u; later discs
+#    arrive via section 1b on relaunches and the daemon prefetch in the background.
 # --------------------------------------------------------------------------------------------------
+STUB_FILLED=0
 if [ ! -s "$HOOK_ROM_PATH" ]; then
 	hlog "=== fetch-on-launch: $HOOK_ROM_PATH (0-byte stub) ==="
 	rm -f /tmp/dl-progress /tmp/romm-phase 2>/dev/null
@@ -122,6 +125,7 @@ if [ ! -s "$HOOK_ROM_PATH" ]; then
 		ui_set "Downloaded ✓" 100
 		sleep 1
 		ui_stop
+		STUB_FILLED=1
 	else
 		# Accepted-degradation: a pre-launch hook cannot cancel the launch, so the emulator still
 		# opens the (intact, 0-byte) stub and fails fast with its own load error — the engine
@@ -145,6 +149,80 @@ if [ ! -s "$HOOK_ROM_PATH" ]; then
 		hlog "download FAILED (rc=$dlrc) — leaving 0-byte stub; emulator will surface the load error"
 		exit 0
 	fi
+fi
+
+# --------------------------------------------------------------------------------------------------
+# 1b. NEXT-DISC FETCH (lodor#7 disc-1-first) — the ROM is a REAL (non-empty) .m3u whose disc set
+#     is incomplete (later discs are 0-byte stubs / absent). The 0-byte-stub gate above can't see
+#     this state — a populated .m3u isn't a stub — so without this re-trigger discs 2+ would
+#     strand forever. Fetch the NEXT missing disc with the same honest progress UX as the stub
+#     download. NEVER gates the launch (a pre-launch hook can't cancel it anyway): with disc 1
+#     present the game plays regardless of this fetch's outcome, so a failure is logged + a brief
+#     honest splash, then the launch proceeds. Skipped right after a stub fill (disc 1 just
+#     landed this launch — one disc per launch; the daemon prefetch completes the set). NextUI
+#     owns the radio: offline the engine fails fast and we launch on disc 1 as-is.
+# --------------------------------------------------------------------------------------------------
+# Resolve the playlist: the .m3u itself, or the sibling "<Game>.m3u" beside a disc file's folder.
+m3u_for() {
+	case "$1" in
+		*.m3u) printf '%s' "$1"; return 0 ;;
+	esac
+	_gd=$(dirname "$1"); _pd=$(dirname "$_gd"); _gn=$(basename "$_gd")
+	_cand="$_pd/$_gn.m3u"
+	[ -f "$_cand" ] && printf '%s' "$_cand"
+}
+# 0 (true) if the .m3u lists a disc whose file is missing or 0-byte (busybox-safe scan).
+m3u_incomplete() {
+	_m="$1"; [ -f "$_m" ] || return 1
+	_dir=$(dirname "$_m"); _any=0
+	while IFS= read -r _line || [ -n "$_line" ]; do
+		[ -n "$_line" ] || continue
+		_any=1
+		case "$_line" in
+			/*) _dp="$_line" ;;
+			*)  _dp="$_dir/$_line" ;;
+		esac
+		[ -s "$_dp" ] || return 0
+	done < "$_m"
+	[ "$_any" = 0 ] && return 0
+	return 1
+}
+M3U="$(m3u_for "$HOOK_ROM_PATH")"
+if [ -n "$M3U" ] && [ -s "$M3U" ] && [ "$STUB_FILLED" != 1 ] && m3u_incomplete "$M3U"; then
+	hlog "=== next-disc fetch: $M3U (populated m3u, incomplete disc set) ==="
+	rm -f /tmp/dl-progress /tmp/romm-phase 2>/dev/null
+	ui_begin "Downloading $GAME…"
+
+	"$RUN" --fetch-next-disc "$M3U" >/dev/null 2>&1 &
+	ndpid=$!
+	while kill -0 "$ndpid" 2>/dev/null; do
+		pct=""; [ -f /tmp/dl-progress ] && pct="$(cat /tmp/dl-progress 2>/dev/null)"
+		case "$pct" in
+			''|*[!0-9]*)
+				ph=""; [ -f /tmp/romm-phase ] && ph="$(cat /tmp/romm-phase 2>/dev/null)"
+				[ -n "$ph" ] && ui_set "$ph"
+				;;
+			*)
+				ui_set "Downloading $GAME…  ${pct}%" "$pct"
+				;;
+		esac
+		sleep 0.3
+	done
+	wait "$ndpid"; ndrc=$?
+
+	if m3u_incomplete "$M3U"; then
+		[ "$ndrc" = 6 ] && : > "$PAKDIR/.pairing-expired" 2>/dev/null
+		# slog (not hlog): the per-launch disc decision belongs in last-sync.log too,
+		# same as the A3 saves line — one log read answers the next field diagnosis.
+		slog "discs: next-disc fetch incomplete (rc=$ndrc) action=launch-on-present game=$GAME"
+		ui_set "Couldn't fetch the next disc — playing the discs on this card" 0
+		sleep 2
+	else
+		hlog "discs: next disc landed game=$GAME"
+		ui_set "Downloaded ✓" 100
+		sleep 1
+	fi
+	ui_stop
 fi
 
 # --------------------------------------------------------------------------------------------------

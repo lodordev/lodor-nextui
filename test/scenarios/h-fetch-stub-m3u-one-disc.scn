@@ -1,0 +1,13 @@
+# lodor#7 one-disc-per-launch: filling a 0-byte .m3u stub via --download lands disc 1
+# (the engine's disc-1-first fill). The SAME launch must NOT also fire --fetch-next-disc
+# — later discs arrive on relaunches / the daemon prefetch, not two-per-launch.
+desc fetch hook (lodor#7): stub .m3u fill does not chain a same-launch next-disc fetch
+invoke prehook
+config paired
+romarg Roms/PlayStation (PS)/✘ FF7.m3u
+sdfile Roms/PlayStation (PS)/✘ FF7.m3u
+engine 0|RESULT downloaded=1 discs_total=2 discs_present=1 discs_fetched=1
+engine 0|
+expect_exit 0
+expect_trace ENGINE --download
+expect_trace_absent ENGINE --fetch-next-disc

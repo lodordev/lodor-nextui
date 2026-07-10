@@ -111,6 +111,16 @@ while :; do
 			# Recently Played refresh. Local-index only — never the catalog mirror.
 			run_sync --sync-continue >> "$LOG" 2>&1; crc=$?
 			log "continue refresh rc=$crc"
+			# Multi-disc prefetch (lodor#7 hybrid): after the pending queues drain,
+			# quietly complete any downloaded multi-disc game still missing discs
+			# (launches fetch disc-1-first; this makes mid-game disc swaps work without
+			# a relaunch). Rides the EXISTING connection like everything here — NextUI
+			# owns the radio. Knob: settings.conf prefetch_discs=off (default ON; same
+			# key=value file launch.sh's toggles use).
+			_prefetch="$(sed -n 's/^prefetch_discs=//p' "$LODOR_CFG_DIR/settings.conf" 2>/dev/null | head -1)"
+			if [ "${_prefetch:-on}" != "off" ]; then
+				run_sync --prefetch-discs >> "$LOG" 2>&1 || log "prefetch-discs rc=$? (retry next interval)"
+			fi
 		fi
 		wifi_release
 		log "$mode flush (saves+states) rc=$rc"

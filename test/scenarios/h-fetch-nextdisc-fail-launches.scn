@@ -1,0 +1,16 @@
+# lodor#7 never-gate-harder: disc 1 is present, the next-disc fetch FAILS (server
+# unreachable, rc=3) -> the hook logs the honest decision, leaves the stub intact
+# (no fake bytes), and still exits 0 — the game plays on the discs it has.
+desc fetch hook (lodor#7): failed next-disc fetch never gates the launch
+invoke prehook
+config paired
+romarg Roms/PlayStation (PS)/✓ FF7.m3u
+sdtext Roms/PlayStation (PS)/✓ FF7.m3u	FF7/D1.chd\nFF7/D2.chd\n
+sdfile+ Roms/PlayStation (PS)/FF7/D1.chd
+sdfile Roms/PlayStation (PS)/FF7/D2.chd
+engine 3|
+engine 0|
+expect_exit 0
+expect_trace ENGINE --fetch-next-disc
+expect_file_empty Roms/PlayStation (PS)/FF7/D2.chd
+expect_log discs: next-disc fetch incomplete
