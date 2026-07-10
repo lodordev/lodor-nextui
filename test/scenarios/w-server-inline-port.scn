@@ -1,6 +1,7 @@
 # UX: a pasted "host:8443" carries its own port — parsed inline, the separate port step is
 # SKIPPED (no KB[Port), and --set-server gets --port 8443.
 desc wizard: host:port typed inline skips the port step
+pick 0|Set up now
 pick 0|https (secure, recommended)
 kb 0|romm.example.com:8443
 pick 0|Verify TLS certificate (recommended)

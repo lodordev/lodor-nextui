@@ -1,4 +1,5 @@
 desc bad pairing code: honest PAIRFAIL, retry succeeds, onboarding completes
+pick 0|Set up now
 pick 0|https (secure, recommended)
 kb 0|romm.example.com
 kb 0|
@@ -15,5 +16,5 @@ pick 2|
 expect_exit 0
 expect_config_has "token"
 expect_config_has "device_name"
-expect_trace PRES timeout=5 msg='Pairing failed: code expired (scripted)'
+expect_log err: Pairing failed: code expired (scripted)
 expect_file Tools/tg5040/Lodor.pak/.library-seeded

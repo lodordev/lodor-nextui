@@ -1,6 +1,7 @@
 desc user never completes browser sign-in: QR poll times out, wizard aborts honestly
 ts present
 timeout 60
+pick 0|Set up now
 pick 0|Tailscale (sign in with QR)
 tsurl https://login.tailscale.com/a/stub123
 tsstatus pending

@@ -1,5 +1,6 @@
 desc QR timed out: abort with NO text fallback, back at network choice, B exits
 ts present
+pick 0|Set up now
 pick 0|Tailscale (sign in with QR)
 tsurl https://login.tailscale.com/a/stub123
 tsstatus pending

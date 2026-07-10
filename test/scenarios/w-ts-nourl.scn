@@ -1,9 +1,10 @@
 desc tailscale up yields no login URL and not Running: honest message, wizard continues, B exits
 ts present
+pick 0|Set up now
 pick 0|Tailscale (sign in with QR)
 tsurl
 tsstatus pending
 pick 2|
 expect_exit 0
 expect_config_absent
-expect_trace PRES timeout=6 msg='Couldn't start Tailscale sign-in. Check Wi-Fi, or choose Home / public URL. Still stuck? Menu > Tailscale: Reset & forget.'
+expect_log err: Couldn't start Tailscale sign-in. Check Wi-Fi, or choose Home / public URL. Still stuck? Menu > Tailscale: Reset & forget.

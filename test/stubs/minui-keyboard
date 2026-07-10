@@ -4,11 +4,12 @@
 #   anything else = render failure — nothing written (real contract).
 set -u
 T="${LODOR_SIM_DIR:?}/trace.log"
-wl=""; title=""
+wl=""; title=""; iv=""
 while [ $# -gt 0 ]; do
 	case "$1" in
 		--write-location) wl="${2:-}"; shift 2 ;;
 		--title)          title="${2:-}"; shift 2 ;;
+		--initial-value)  iv="${2:-}"; shift 2 ;;
 		*) shift ;;
 	esac
 done
@@ -18,5 +19,5 @@ txt="${line#*|}"; [ "$txt" = "$line" ] && txt=""
 if [ "$rc" = 0 ] && [ -n "$wl" ]; then
 	printf '%s\n' "$txt" > "$wl"
 fi
-echo "KB[$title] rc=$rc txt='$txt'" >> "$T"
+echo "KB[$title] init='$iv' rc=$rc txt='$txt'" >> "$T"
 exit "$rc"

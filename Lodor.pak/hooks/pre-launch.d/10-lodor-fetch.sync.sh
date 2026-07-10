@@ -127,13 +127,20 @@ if [ ! -s "$HOOK_ROM_PATH" ]; then
 		# opens the (intact, 0-byte) stub and fails fast with its own load error — the engine
 		# restores the stub on every failure path, never leaving a corrupt partial file. We never
 		# mask the failure; the cause shown maps the engine/romm-run exit honestly (task #120/#124).
+		# #2: romm-run's RESERVED wrapper codes are distinct now — 101 pak-broken, 102 Wi-Fi down
+		# (2 kept for a stale pre-#2 wrapper); rc=4 is the engine's ran-but-errored (a server/
+		# transfer problem, NOT Wi-Fi); an UNKNOWN rc never claims "check Wi-Fi". #3: every failure
+		# splash says the emulator screen that follows WILL fail, so the stub's load error reads
+		# as expected instead of as a second mystery.
 		case "$dlrc" in
 			6) # PAIRING_EXPIRED contract (engine exit 6): flag it for the Tools-menu banner too.
 			   : > "$PAKDIR/.pairing-expired" 2>/dev/null
-			   ui_error "Pairing expired — open Tools > Lodor to re-pair" ;;
-			2) ui_error "Wi-Fi not connected — enable it in NextUI Settings" ;;
-			3) ui_error "Couldn't reach your server — check Wi-Fi" ;;
-			*) ui_error "Download failed — check Wi-Fi" ;;
+			   ui_error "Pairing expired — open Tools > Lodor to re-pair. The game screen that follows will fail to open — that's expected. Re-pair and launch again." ;;
+			2|102) ui_error "Wi-Fi not connected — enable it in NextUI Settings. The game screen that follows will fail to open — that's expected. Fix the connection and launch again." ;;
+			3) ui_error "Couldn't reach your server — check the server or your connection. The game screen that follows will fail to open — that's expected. Fix the connection and launch again." ;;
+			4) ui_error "The server had a problem sending this game — try again. The game screen that follows will fail to open — that's expected. Fix the connection and launch again." ;;
+			101) ui_error "Lodor is broken on this card — reinstall it from the Pak Store. The game screen that follows will fail to open — that's expected. Reinstall Lodor and launch again." ;;
+			*) ui_error "Couldn't download $GAME — unknown cause, try again (details in last-sync.log). The game screen that follows will fail to open — that's expected." ;;
 		esac
 		hlog "download FAILED (rc=$dlrc) — leaving 0-byte stub; emulator will surface the load error"
 		exit 0
@@ -152,7 +159,8 @@ fi
 ui_stop
 
 # Ask the engine which server saves exist (newest-first TSV: <id>\t<date>\t<who>\t<kb>KB[\tCURRENT],
-# then a single-field "LOCAL=<none|current|older|unpushed>" trailer describing the on-device save).
+# then a single-field "LOCAL=<none|current|older|unpushed|deleted>" trailer describing the
+# on-device save).
 # romm-run merges stderr into stdout, so keep only well-formed rows (>=2 tab fields) — the trailer
 # is deliberately tab-free so this filter drops it from the row set.
 saves_raw="$("$RUN" --list-saves "$HOOK_ROM_PATH" 2>/dev/null)"
@@ -185,6 +193,15 @@ newest="$(printf '%s\n' "$saves" | head -1)"
 # while the launched save matched only the OLDER rev 467).
 if [ "$localstate" = "current" ]; then
 	slog "saves: listed=$nsaves newest=current action=silent local=current game=$GAME"
+	exit 0
+fi
+# DELETED-SAVE TOMBSTONE: the engine's save ledger proves the launched save was deliberately
+# DELETED on this device after a sync and the server holds nothing newer — honor the deletion
+# silently instead of resurrecting it (the pre-tombstone behavior restored the newest server
+# save on every launch). Server Saves in the game menu is the explicit way back — an explicit
+# restore always resurrects. (Older engines never emit "deleted"; nothing to degrade.)
+if [ "$localstate" = "deleted" ]; then
+	slog "saves: listed=$nsaves newest=tombstoned action=silent local=deleted game=$GAME"
 	exit 0
 fi
 # No trailer at all (an older engine build): fall back to the legacy newest-row CURRENT check

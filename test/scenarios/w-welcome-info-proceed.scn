@@ -1,0 +1,9 @@
+# UX #4: picking an info row on the welcome page just redraws it; "Set up now" proceeds
+# into the real wizard (proven by the protocol step drawing).
+desc welcome page: info row redraws, Set up now enters the wizard
+pick 0|Games download when you launch them
+pick 0|Set up now
+pick 2|
+expect_exit 0
+expect_config_absent
+expect_trace LIST[RomM server protocol]

@@ -188,7 +188,7 @@ ts_onboard() {
 			ui_msg_timed "Tailscale already signed in." 3
 			return 0
 		fi
-		ui_msg_timed "Couldn't start Tailscale sign-in. Check Wi-Fi, or choose Home / public URL. Still stuck? Menu > Tailscale: Reset & forget." 6
+		ui_error_ack "Couldn't start Tailscale sign-in. Check Wi-Fi, or choose Home / public URL. Still stuck? Menu > Tailscale: Reset & forget."
 		return 1
 	fi
 	if ts_show_qr "$_url"; then
@@ -198,7 +198,7 @@ ts_onboard() {
 	# cancel / timeout: stop the pending interactive `up` + daemon so a retry starts clean.
 	[ -f "$TS_STATEDIR/up.pid" ] && kill "$(cat "$TS_STATEDIR/up.pid" 2>/dev/null)" >/dev/null 2>&1
 	tailscale_down >/dev/null 2>&1
-	ui_msg_timed "Tailscale sign-in didn't complete. Try again, or use Home / public URL." 5
+	ui_error_ack "Tailscale sign-in didn't complete. Try again, or use Home / public URL."
 	return 1
 }
 
@@ -227,7 +227,7 @@ do_ts_reconnect() {
 		connected)   ui_msg_timed "Reconnected." 5 ;;
 		no-login)    ui_msg_timed "No saved Tailscale sign-in. Re-onboard via Setup / Re-pair > Tailscale." 5 ;;
 		not-capable|no-binary) ui_msg_timed "Tailscale is not available on this device." 5 ;;
-		*)           ui_msg_timed "Couldn't reconnect - Tailscale didn't reach Running. Check Wi-Fi (details: tailscaled.log)." 6 ;;
+		*)           ui_error_ack "Couldn't reconnect - Tailscale didn't reach Running. Check Wi-Fi (details: tailscaled.log)" ;;
 	esac
 }
 
@@ -242,6 +242,42 @@ ui_msg_timed() {  # blocking message for N seconds (default 3)
 	[ -x "$PRESBIN" ] && "$PRESBIN" --message "$1" --timeout "${2:-3}" >/dev/null 2>&1
 }
 ui_clear() { killall minui-presenter >/dev/null 2>&1 || true; }
+
+# ui_error_ack <message> (#6) — FAILURES are dismissable, not timed flashes: draw the message as a
+# one-row read-only minui-list (any button exits — the gm_details pattern) so slow readers aren't
+# rushed and fast readers aren't stuck waiting. Logged with an err: prefix (greppable in
+# last-sync.log). Falls back to a timed message only when the list renderer is missing or fails to
+# draw. SUCCESSES stay timed (ui_msg_timed) — only failure paths route here.
+ui_error_ack() {
+	log "err: $1"
+	if [ -x "$LISTBIN" ]; then
+		ERR_LST="/tmp/lodor-error-list"
+		printf '%s\n' "$1" > "$ERR_LST"
+		killall minui-presenter >/dev/null 2>&1 || true
+		"$LISTBIN" --disable-auto-sleep --file "$ERR_LST" --format text \
+			--title "Lodor - problem" --confirm-text "OK" --cancel-text "BACK" \
+			--write-location /tmp/lodor-error-out >/dev/null 2>&1
+		case $? in 0|2|3) return 0 ;; esac   # dismissed; a render failure falls through
+	fi
+	killall minui-presenter >/dev/null 2>&1 || true
+	[ -x "$PRESBIN" ] && "$PRESBIN" --message "$1" --timeout 4 >/dev/null 2>&1
+	return 0
+}
+
+# show2.elf live-progress presenter (#1): the SAME show2 driver the fetch hook uses (one bridge,
+# not two divergent copies) — sourced so the long mirror passes (Refresh library / first seed /
+# wizard seed) can stream the engine's REAL side-channel progress instead of a static
+# minutes-long message.
+SHOW2_LOGO="$PAKDIR/res/lodor.png"
+SHOW2_LOGFN="log"
+. "$PAKDIR/lib/show2-lib.sh" 2>/dev/null
+# Degrade honestly if the lib is missing (old/partial card): a persistent presenter message
+# stands in for the live bar — never die over cosmetics.
+command -v ui_begin >/dev/null 2>&1 || {
+	ui_begin() { ui_msg "$1"; }
+	ui_set() { :; }
+	ui_stop() { ui_clear; }
+}
 
 # settings.conf lives beside config.json in the pak dir (LODOR_CFG_DIR, from the lib; #30) so the
 # engine reads the toggle CWD-relative there. Migrate any settings.conf left in the old shared home.
@@ -475,14 +511,14 @@ ensure_mirror_mode() {
 					if set_mirror_mode merge; then
 						ui_msg_timed "RomM games will mix into your folders. Run Refresh library to tidy up the old ones - your own files are never modified." 5
 					else
-						ui_msg_timed "Couldn't save the setting - check the SD card" 4
+						ui_error_ack "Couldn't save the setting - check the SD card"
 					fi
 					;;
 				"Keep them"*)
 					if set_mirror_mode separate; then
 						ui_msg_timed "RomM games stay in their own folders." 3
 					else
-						ui_msg_timed "Couldn't save the setting - check the SD card" 4
+						ui_error_ack "Couldn't save the setting - check the SD card"
 					fi
 					;;
 			esac
@@ -513,7 +549,7 @@ toggle_fetch_covers() {
 			ui_msg_timed "Only downloaded games fetch box art now. Art already on the card is kept." 4
 		fi
 	else
-		ui_msg_timed "Couldn't save the setting - check the SD card" 4
+		ui_error_ack "Couldn't save the setting - check the SD card"
 	fi
 }
 
@@ -550,23 +586,28 @@ active_profile_label() {
 # diagnose <rc> — turn a failed engine call into an HONEST cause. Re-checks cheap LOCAL preconditions
 # then TRUSTS the engine's own exit code (the pure-Go engine's happy-eyeballs connect is authoritative;
 # we deliberately do NOT pre-probe RomM with busybox nc — a known false-negative on this device).
+# romm-run's RESERVED wrapper codes (#2) are mapped first: 101 = the pak itself is broken (missing
+# binary/lib — never a network problem), 102 = Wi-Fi down (2 kept for a stale pre-#2 wrapper). An
+# UNKNOWN rc never claims "check Wi-Fi" — it says so and points at the log.
 diagnose() {
 	if   [ ! -x "$SYNC_BIN" ];                 then echo "Lodor engine missing - reinstall from the Pak Store"
+	elif [ "${1:-1}" = 101 ];                  then echo "Lodor is broken on this card - reinstall it from the Pak Store"
 	elif ! creds_present;                      then echo "Not connected - run Lodor setup, then retry"
 	elif [ "${1:-1}" = 6 ];                    then echo "Pairing expired - run Setup / Re-pair"
+	elif [ "${1:-1}" = 102 ] || [ "${1:-1}" = 2 ]; then echo "Wi-Fi not connected - enable it in NextUI Settings, then retry"
 	elif ! _radio_ready;                       then echo "Wi-Fi not connected - enable it in NextUI Settings, then retry"
 	elif [ "${1:-1}" = 3 ];                    then echo "Couldn't reach your server - check the server or your connection, then retry"
 	elif [ "${1:-1}" = 4 ];                    then echo "Sync finished with errors - some items didn't sync, try again"
-	else                                            echo "Sync failed (rc=${1:-?}) - try again"
+	else                                            echo "Sync failed (rc=${1:-?}) - unknown cause, try again (details in last-sync.log)"
 	fi
 }
 
-trap 'ui_clear; wifi_release' EXIT INT TERM HUP QUIT
+trap 'ui_stop; ui_clear; wifi_release' EXIT INT TERM HUP QUIT
 
 # Engine must exist for BOTH the wizard and the client. (Wi-Fi / pairing checked per-action so the
 # offline-safe Coexist toggle stays reachable with Wi-Fi off.)
 if [ ! -x "$SYNC_BIN" ]; then
-	ui_msg_timed "Lodor engine missing - reinstall from the Pak Store" 4
+	ui_error_ack "Lodor engine missing - reinstall from the Pak Store"
 	exit 1
 fi
 
@@ -592,7 +633,7 @@ kb() {
 	rm -f "$KB_OUT"
 	killall minui-presenter >/dev/null 2>&1 || true
 	if [ ! -x "$KBBIN" ]; then
-		ui_msg_timed "On-screen keyboard missing - reinstall the Lodor pak" 4
+		ui_error_ack "On-screen keyboard missing - reinstall the Lodor pak"
 		return 9
 	fi
 	"$KBBIN" --title "$1" --initial-value "$2" --write-location "$KB_OUT"
@@ -639,13 +680,45 @@ eng_offline() {
 	printf '%s\n' "$NET_OUT" >> "$LOG"
 }
 
+# eng_progress <label> <NETWORK engine mode...> (#1) — run the engine in the BACKGROUND and stream
+# its REAL progress side-channels to the screen while it works: a numeric /tmp/dl-progress drives
+# the bar, /tmp/romm-phase mirrors the engine's human phase label — the EXACT bridge the fetch
+# hook streams downloads with (one pattern, not two). Never fabricates forward progress: no
+# side-channel data = the label stands. Output -> $LOG; pairing flag noted; returns the engine rc.
+eng_progress() {
+	_eplbl="$1"; shift
+	rm -f /tmp/dl-progress /tmp/romm-phase 2>/dev/null
+	killall minui-presenter >/dev/null 2>&1 || true
+	ui_begin "$_eplbl"
+	"$RUN" "$@" >> "$LOG" 2>&1 &
+	_eppid=$!
+	while kill -0 "$_eppid" 2>/dev/null; do
+		_eppct=""; [ -f /tmp/dl-progress ] && _eppct="$(cat /tmp/dl-progress 2>/dev/null)"
+		case "$_eppct" in
+			''|*[!0-9]*)
+				_epph=""; [ -f /tmp/romm-phase ] && _epph="$(cat /tmp/romm-phase 2>/dev/null)"
+				[ -n "$_epph" ] && ui_set "$_epph"
+				;;
+			*)
+				ui_set "$_eplbl  ${_eppct}%" "$_eppct"
+				;;
+		esac
+		sleep 0.3
+	done
+	wait "$_eppid"; _eprc=$?
+	ui_stop
+	log "eng_progress: $* rc=$_eprc"
+	note_net_rc "$_eprc"
+	return "$_eprc"
+}
+
 # require_wifi — honest Wi-Fi precondition for network steps (NextUI owns the radio; we only ride it).
 require_wifi() {
 	if _radio_ready; then return 0; fi
 	ui_msg "Waiting for Wi-Fi..."
 	if _radio_wait 8; then ui_clear; return 0; fi
-	if _have_up; then ui_msg_timed "Wi-Fi still connecting - try again in a moment" 4
-	else ui_msg_timed "Connect Wi-Fi in NextUI Settings first, then re-run Lodor setup" 5; fi
+	if _have_up; then ui_error_ack "Wi-Fi still connecting - try again in a moment"
+	else ui_error_ack "Connect Wi-Fi in NextUI Settings first, then re-run Lodor setup"; fi
 	return 1
 }
 
@@ -710,14 +783,21 @@ step_server() {
 	# the prior/blank value and is NOT an abort — only a confirm updates it (the old code fell
 	# through and wiped a previously-typed port on every non-confirm; found by wizard-sim 2026-07-02).
 	if [ "$_inline_port" != 1 ]; then
-		kb "Port (leave blank for default)" "$OB_PORT"; _rc=$?
-		if [ "$_rc" = 0 ]; then
+		_pval="$OB_PORT"
+		while :; do
+			kb "Port (leave blank for default)" "$_pval"; _rc=$?
+			[ "$_rc" = 0 ] || break   # B/menu/render-fail keeps the prior value (not an abort)
 			case "$KB_VAL" in
-				"" ) OB_PORT="" ;;
-				*[!0-9]* ) ui_msg_timed "Port must be a number - ignoring" 3; OB_PORT="" ;;
-				* ) OB_PORT="$KB_VAL" ;;
+				"" ) OB_PORT=""; break ;;
+				*[!0-9]* )
+					# INVALID PORT (#5): never silently discard — loop back into the keyboard
+					# with the typed value preserved, so fixing it is an edit, not a retype.
+					_pval="$KB_VAL"
+					ui_msg_timed "Port must be a number - edit or clear it" 3
+					;;
+				* ) OB_PORT="$KB_VAL"; break ;;
 			esac
-		fi
+		done
 	fi
 
 	# TLS skip (HTTPS only)
@@ -742,7 +822,7 @@ step_server() {
 		return 0
 	fi
 	_why="$(printf '%s\n' "$NET_OUT" | grep -a 'SETSERVERFAIL' | tail -1)"
-	ui_msg_timed "${_why:-Could not save the server address} - check it and retry" 4
+	ui_error_ack "${_why:-Could not save the server address} - check it and retry"
 	return 2
 }
 
@@ -773,7 +853,7 @@ step_pair() {
 			*) _why="Pairing failed (rc=$NET_RC) - check the code and try again" ;;
 		esac
 	fi
-	ui_msg_timed "$_why" 5
+	ui_error_ack "$_why"
 	return 2
 }
 
@@ -793,17 +873,16 @@ step_device() {
 	fi
 	_why="$(printf '%s\n' "$NET_OUT" | grep -a 'REGFAIL' | tail -1 | sed 's/^REGFAIL /Register failed: /')"
 	[ -z "$_why" ] && _why="Couldn't register this device (rc=$NET_RC) - try again"
-	ui_msg_timed "$_why" 5
+	ui_error_ack "$_why"
 	return 2
 }
 
 # STEP: first library mirror (optional; the client also seeds on first open). Best-effort.
 step_seed() {
 	require_wifi || return 0
-	ui_msg "Downloading your game library..."
-	run_net --mirror-catalog
-	ui_msg "Downloading your collections..."
-	run_net --mirror-collections
+	# LIVE progress (#1): stream the engine's real phase/percent through the first mirror.
+	eng_progress "Downloading your game library..." --mirror-catalog
+	eng_progress "Downloading your collections..." --mirror-collections
 	ui_clear
 	return 0
 }
@@ -868,15 +947,7 @@ run_wizard() {
 # The 0.9.1-beta test showed the old "Sync now" (which ran the full --mirror-catalog +
 # --mirror-collections) taking library-scale minutes; library refresh is its own honest button now.
 do_sync_now() {
-	if ! creds_present; then ui_msg_timed "Not connected - run Lodor setup, then retry" 3; return 2; fi
-	if ! _radio_ready; then
-		ui_msg "Waiting for Wi-Fi..."
-		if ! _radio_wait 8; then
-			if _have_up; then ui_msg_timed "Wi-Fi still connecting - try again in a moment" 3
-			else ui_msg_timed "Wi-Fi not connected - enable it in NextUI Settings, then retry" 4; fi
-			return 1
-		fi
-	fi
+	_require_online || return $?
 	ui_msg "Flushing pending saves..."
 	"$RUN" --push-pending >> "$LOG" 2>&1; _r1=$?
 	# Manual Sync now also force-pushes ALL local savestates (not just the pending queue),
@@ -889,7 +960,7 @@ do_sync_now() {
 	"$RUN" --sync-continue >> "$LOG" 2>&1; _r3=$?
 	_rc=0; for _r in $_r1 $_r2 $_r3; do [ "$_r" -gt "$_rc" ] && _rc=$_r; done
 	note_net_rc "$_rc"
-	if [ "$_rc" = 0 ]; then ui_msg_timed "Sync complete" 2; else ui_msg_timed "$(diagnose "$_rc")" 4; fi
+	if [ "$_rc" = 0 ]; then ui_msg_timed "Sync complete" 2; else ui_error_ack "$(diagnose "$_rc")"; fi
 	[ "$_rc" = 0 ] && maybe_check_updates
 	return "$_rc"
 }
@@ -920,7 +991,7 @@ do_check_updates() {
 	run_net --check-update
 	_url="$(printf '%s\n' "$NET_OUT" | grep -a '^RESULT update=' | tail -1)"
 	if [ "$NET_RC" != 0 ] || [ -z "$_url" ]; then
-		ui_msg_timed "Couldn't reach the update server - this check needs internet, not just your RomM server" 5
+		ui_error_ack "Couldn't reach the update server - this check needs internet, not just your RomM server"
 		return 1
 	fi
 	stamp_update_state "$_url"
@@ -985,22 +1056,14 @@ refresh_report() {
 }
 
 do_refresh_library() {
-	if ! creds_present; then ui_msg_timed "Not connected - run Lodor setup, then retry" 3; return 2; fi
-	if ! _radio_ready; then
-		ui_msg "Waiting for Wi-Fi..."
-		if ! _radio_wait 8; then
-			if _have_up; then ui_msg_timed "Wi-Fi still connecting - try again in a moment" 3
-			else ui_msg_timed "Wi-Fi not connected - enable it in NextUI Settings, then retry" 4; fi
-			return 1
-		fi
-	fi
-	ui_msg "Refreshing your library..."
-	"$RUN" --mirror-catalog >> "$LOG" 2>&1; _r1=$?
-	ui_msg "Refreshing collections..."
-	"$RUN" --mirror-collections >> "$LOG" 2>&1; _r2=$?
+	_require_online || return $?
+	# LIVE progress (#1): the full mirror can take minutes on a big library — background the
+	# engine and stream its real phase/percent side-channels (the fetch hook's exact bridge)
+	# instead of a static message. The final honest report is unchanged.
+	eng_progress "Refreshing your library..." --mirror-catalog; _r1=$?
+	eng_progress "Refreshing collections..." --mirror-collections; _r2=$?
 	_rc=0; for _r in $_r1 $_r2; do [ "$_r" -gt "$_rc" ] && _rc=$_r; done
-	note_net_rc "$_rc"
-	if [ "$_rc" = 0 ]; then ui_msg_timed "$(refresh_report 'Library refreshed')" 3; else ui_msg_timed "$(diagnose "$_rc")" 4; fi
+	if [ "$_rc" = 0 ]; then ui_msg_timed "$(refresh_report 'Library refreshed')" 3; else ui_error_ack "$(diagnose "$_rc")"; fi
 	return "$_rc"
 }
 
@@ -1011,7 +1074,7 @@ do_push_pending() {
 	ui_msg "Uploading pending saves..."
 	run_net --push-pending
 	ui_clear
-	if [ "$NET_RC" != 0 ]; then ui_msg_timed "$(diagnose "$NET_RC")" 4; return 1; fi
+	if [ "$NET_RC" != 0 ]; then ui_error_ack "$(diagnose "$NET_RC")"; return 1; fi
 	_pl="$(printf '%s\n' "$NET_OUT" | grep -a '^RESULT pushed=' | tail -1)"
 	_pu="$(printf '%s\n' "$_pl" | sed -n 's/.*pushed=\([0-9][0-9]*\).*/\1/p')"
 	_st="$(printf '%s\n' "$_pl" | sed -n 's/.*stuck=\([0-9][0-9]*\).*/\1/p')"
@@ -1040,7 +1103,7 @@ toggle_coexist() {
 			merge)    ui_msg_timed "RomM games mix into your folders - your own files are never modified. Run Refresh library to apply." 4 ;;
 		esac
 	else
-		ui_msg_timed "Couldn't save the setting - check the SD card" 4
+		ui_error_ack "Couldn't save the setting - check the SD card"
 	fi
 }
 
@@ -1086,18 +1149,18 @@ do_uninstall_lodor() {
 	if [ "$_un_ok" = 1 ]; then
 		ui_msg_timed "Removed ${_un_n:-0} Lodor file(s) and cleared pairing. Delete Tools/$BINPLAT/Lodor.pak to finish." 6
 	else
-		ui_msg_timed "Nothing removed - Lodor's file records were missing. Run Refresh library once, then retry." 5
+		ui_error_ack "Nothing removed - Lodor's file records were missing. Run Refresh library once, then retry."
 	fi
 	return 0
 }
 
-_require_online() {   # creds + a usable radio, or an honest message + non-zero. Used by net actions.
-	if ! creds_present; then ui_msg_timed "Not connected - run Lodor setup, then retry" 3; return 2; fi
+_require_online() {   # creds + a usable radio, or an honest dismissable error + non-zero. Used by net actions.
+	if ! creds_present; then ui_error_ack "Not connected - run Lodor setup, then retry"; return 2; fi
 	if ! _radio_ready; then
 		ui_msg "Waiting for Wi-Fi..."
 		if ! _radio_wait 8; then
-			if _have_up; then ui_msg_timed "Wi-Fi still connecting - try again in a moment" 3
-			else ui_msg_timed "Wi-Fi not connected - enable it in NextUI Settings, then retry" 4; fi
+			if _have_up; then ui_error_ack "Wi-Fi still connecting - try again in a moment"
+			else ui_error_ack "Wi-Fi not connected - enable it in NextUI Settings, then retry"; fi
 			return 1
 		fi
 	fi
@@ -1112,7 +1175,7 @@ do_download_queue() {   # --download-queue: fetch every ROM queued in download-q
 	# Engine prints RESULT downloaded=<N> failed=<M> remaining=<K> to the log; report honestly.
 	_line="$(grep -a '^RESULT downloaded=' "$LOG" 2>/dev/null | tail -1)"
 	if [ "$_rc" = 0 ]; then ui_msg_timed "${_line:-Download queue complete}" 3
-	else ui_msg_timed "$(diagnose "$_rc")" 4; fi
+	else ui_error_ack "$(diagnose "$_rc")"; fi
 	return "$_rc"
 }
 
@@ -1123,16 +1186,20 @@ do_download_bios() {    # --download-bios: BYOB pull of firmware for every mappe
 	note_net_rc "$_rc"
 	_line="$(grep -a '^RESULT bios=' "$LOG" 2>/dev/null | tail -1)"
 	if [ "$_rc" = 0 ]; then ui_msg_timed "${_line:-BIOS download complete}" 3
-	else ui_msg_timed "$(diagnose "$_rc")" 4; fi
+	else ui_error_ack "$(diagnose "$_rc")"; fi
 	return "$_rc"
 }
 
 do_sync_feed() {        # --sync-feed: read-only list of recent cross-device saves
 	_require_online || return $?
 	ui_msg "Fetching recent activity..."
-	feed="$("$RUN" --sync-feed 2>/dev/null | awk -F'\t' 'NF>=2')"
+	# lodor#44: capture the engine rc BEFORE filtering - unreachable is rc=3 now and must
+	# say so honestly, never masquerade as an empty feed.
+	feed_raw="$("$RUN" --sync-feed 2>/dev/null)"; _rc=$?
+	feed="$(printf '%s\n' "$feed_raw" | awk -F'\t' 'NF>=2')"
 	ui_clear
-	if [ -z "$feed" ]; then ui_msg_timed "No recent activity (or server unreachable)" 3; return 0; fi
+	if [ "$_rc" != 0 ]; then ui_msg_timed "$(diagnose "$_rc")" 4; return 0; fi
+	if [ -z "$feed" ]; then ui_msg_timed "No recent activity yet" 3; return 0; fi
 	# Render the feed as a read-only minui-list (B exits). Each row: <game>  -  <when>  -  <device>.
 	FEED_LST="/tmp/lodor-feed-list"; : > "$FEED_LST"
 	TAB="$(printf '\t')"
@@ -1154,7 +1221,7 @@ do_switch_user() {      # --list-profiles: pick an already-paired profile -> wri
 	# no network. ADDING a new user needs a typed pair code -> that is now done in-pak via the
 	# "Setup / Re-pair" menu entry (the onboarding wizard), so here we direct the user there.
 	lodor_migrate_cfg
-	if ! creds_present; then ui_msg_timed "Not connected - run Lodor setup, then retry" 3; return 2; fi
+	if ! creds_present; then ui_error_ack "Not connected - run Lodor setup, then retry"; return 2; fi
 	profiles="$("$RUN" --list-profiles 2>/dev/null | awk -F'\t' 'NF>=2')"
 	[ -z "$profiles" ] && profiles="$(BASE_PATH="$SDCARD" SDCARD_PATH="$SDCARD" PLATFORM="$PLAT" LODOR_PAK_DIR="$PAKDIR" sh -c "cd '$LODOR_CFG_DIR' 2>/dev/null && '$SYNC_BIN' --list-profiles" 2>/dev/null | awk -F'\t' 'NF>=2')"
 	if [ -z "$profiles" ]; then ui_msg_timed "No profiles found - pair via Setup / Re-pair" 3; return 0; fi
@@ -1186,7 +1253,7 @@ do_switch_user() {      # --list-profiles: pick an already-paired profile -> wri
 		ui_msg_timed "Switched to $ulabel" 2
 		log "switch-user -> $ulabel"
 	else
-		ui_msg_timed "Couldn't switch profile - check the SD card" 4
+		ui_error_ack "Couldn't switch profile - check the SD card"
 	fi
 	return 0
 }
@@ -1209,17 +1276,16 @@ maybe_seed_library() {
 	[ -f "$SEED_SENTINEL" ] && return 0
 	if ! creds_present; then log "first-run seed: skipped (RomM not paired)"; return 0; fi
 	if ! _radio_wait 8;  then log "first-run seed: skipped (Wi-Fi not connected)"; return 0; fi
-	ui_msg "Downloading your game library..."
-	"$RUN" --mirror-catalog >> "$LOG" 2>&1; _s1=$?
-	ui_msg "Downloading your collections..."
-	"$RUN" --mirror-collections >> "$LOG" 2>&1; _s2=$?
+	# LIVE progress (#1): the first seed is the longest wait a new user ever sees — stream it.
+	eng_progress "Downloading your game library..." --mirror-catalog; _s1=$?
+	eng_progress "Downloading your collections..." --mirror-collections; _s2=$?
 	_src=0; for _r in $_s1 $_s2; do [ "$_r" -gt "$_src" ] && _src=$_r; done
 	if [ "$_src" = 0 ]; then
 		: > "$SEED_SENTINEL" 2>/dev/null
 		ui_msg_timed "$(refresh_report 'Library ready')" 3
 		log "first-run seed: complete"
 	else
-		ui_msg_timed "$(diagnose "$_src")" 4
+		ui_error_ack "$(diagnose "$_src")"
 		log "first-run seed: failed (catalog=$_s1 collections=$_s2) - will retry next open"
 	fi
 }
@@ -1299,15 +1365,15 @@ gm_download() {     # engine --download + offline ✘->✓ reconcile. 0 = path c
 		ui_msg_timed "Downloaded - it's in $_sys in your library" 3
 		return 0
 	fi
-	if [ "$NET_RC" != 0 ]; then ui_msg_timed "$(diagnose "$NET_RC")" 4
+	if [ "$NET_RC" != 0 ]; then ui_error_ack "$(diagnose "$NET_RC")"
 	else
 		# rc=0 but no verified file: map the engine's own DLFAIL diagnostic to an actionable cause
 		# instead of pointing a device user at a log they can't read.
 		_df="$(printf '%s\n' "$NET_OUT" | grep -a '^DLFAIL' | tail -1)"
 		case "$_df" in
-			*resolve*) ui_msg_timed "$_name isn't in your library index - run Refresh library, then retry" 4 ;;
-			*verify*)  ui_msg_timed "Download didn't verify - try again" 4 ;;
-			*)         ui_msg_timed "Couldn't download $_name - try again" 4 ;;
+			*resolve*) ui_error_ack "$_name isn't in your library index - run Refresh library, then retry" ;;
+			*verify*)  ui_error_ack "Download didn't verify - try again" ;;
+			*)         ui_error_ack "Couldn't download $_name - try again" ;;
 		esac
 	fi
 	return 1
@@ -1325,7 +1391,7 @@ gm_queue_add() {    # offline append to the engine's download-queue.txt (SDCARD-
 		log "queued for download: $_rel"
 		ui_msg_timed "Queued - download it any time from the Lodor menu" 3
 	else
-		ui_msg_timed "Couldn't write the queue - check the SD card" 4
+		ui_error_ack "Couldn't write the queue - check the SD card"
 	fi
 	return 0
 }
@@ -1343,7 +1409,7 @@ gm_delete() {       # confirm -> engine --evict (offline). 0 = path changed (cal
 		ui_msg_timed "Deleted from card - still in your library to re-download" 3
 		return 0
 	fi
-	ui_msg_timed "Couldn't delete $_name - check the SD card" 4
+	ui_error_ack "Couldn't delete $_name - check the SD card"
 	return 1
 }
 
@@ -1353,21 +1419,22 @@ gm_sync_save() {    # engine --sync-save for this one ROM; honest per-direction 
 	ui_msg "Syncing save for $_name..."
 	run_net --sync-save "$_p"
 	ui_clear
-	if [ "$NET_RC" != 0 ]; then ui_msg_timed "$(diagnose "$NET_RC")" 4; return 1; fi
+	if [ "$NET_RC" != 0 ]; then ui_error_ack "$(diagnose "$NET_RC")"; return 1; fi
 	_ln="$(printf '%s\n' "$NET_OUT" | grep -a '^RESULT pulled=' | tail -1)"
 	# reason= (A2) is the engine's honest decision token — match it FIRST so "couldn't reach
 	# the server" can never render as "Save already in sync" (the 2026-07-02 Smart Pro field
 	# lie: tailscaled was down, every call failed, the old 0/0 glob said all was well). The
 	# count-glob cases below keep working against an older engine that emits no reason.
 	case "$_ln" in
-		*reason=offline*)  ui_msg_timed "Couldn't reach your server - check Wi-Fi" 4; return 1 ;;
+		*reason=offline*)  ui_error_ack "Couldn't reach your server - check the server or your connection, then retry"; return 1 ;;
 		*reason=resolve*)  ui_msg_timed "This game isn't matched to your server library" 4 ;;
 		*reason=in-sync*)  ui_msg_timed "Save already in sync" 2 ;;
+		*reason=tombstone*) ui_msg_timed "Save was deleted on this device - use Server Saves to bring it back" 3 ;;
 		*reason=unpushed-local*)
 			if printf '%s' "$_ln" | grep -q 'pushed=1'; then
 				ui_msg_timed "Your newer save was uploaded to the server" 3
 			else
-				ui_msg_timed "Your save couldn't upload - it stays safe on this card" 4
+				ui_error_ack "Your save couldn't upload - it stays safe on this card"
 			fi ;;
 		*reason=no-server-save*)
 			if printf '%s' "$_ln" | grep -q 'pushed=1'; then
@@ -1402,7 +1469,7 @@ gm_server_saves() { # --list-saves picker (ghost-aware) -> confirm -> --restore-
 	_raw="$("$RUN" --list-saves "$_p" 2>/dev/null)"; _lsrc=$?
 	_saves="$(printf '%s\n' "$_raw" | awk -F'\t' 'NF>=2')"
 	ui_clear
-	if [ "$_lsrc" != 0 ]; then ui_msg_timed "$(diagnose "$_lsrc")" 4; return 1; fi
+	if [ "$_lsrc" != 0 ]; then ui_error_ack "$(diagnose "$_lsrc")"; return 1; fi
 	if [ -z "$_saves" ]; then ui_msg_timed "No server saves for $_name" 3; return 0; fi
 	: > "$PICK_LST"; : > "$GM_IDS"
 	TAB="$(printf '\t')"
@@ -1448,11 +1515,11 @@ gm_server_saves() { # --list-saves picker (ghost-aware) -> confirm -> --restore-
 			fi
 		elif printf '%s' "$NET_OUT" | grep -q 'reason=ghost'; then
 			# engine-side refusal (a ghost slipped past the listing): never fake a restore
-			ui_msg_timed "That save has no data on the server - can't restore" 4
+			ui_error_ack "That save has no data on the server - can't restore"
 		elif [ "$NET_RC" != 0 ]; then
-			ui_msg_timed "$(diagnose "$NET_RC")" 4
+			ui_error_ack "$(diagnose "$NET_RC")"
 		else
-			ui_msg_timed "Restore failed - try again" 4
+			ui_error_ack "Restore failed - try again"
 		fi
 		return 0
 	done
@@ -1695,7 +1762,37 @@ run_menu() {
 # ==================================================================================================
 if ! creds_present; then
 	log "state: not configured -> onboarding wizard"
-	[ -x "$LISTBIN" ] && ui_msg_timed "Let's connect this device to your RomM server." 3
+	# ORIENTATION (#4): a real first page instead of a 3s flash — what Lodor will do (the Go
+	# wizard's welcome copy), then an explicit choice. "Not now" / B exits cleanly and asks
+	# again next open; nothing on the card changes until the user opts in. Info rows redraw.
+	if [ -x "$LISTBIN" ]; then
+		_wl_go=0
+		while :; do
+			{
+				printf 'Your whole RomM library appears on this device\n'
+				printf 'Games download when you launch them\n'
+				printf 'Saves sync automatically between your devices\n'
+				printf 'Set up now\n'
+				printf 'Not now\n'
+			} > "$PICK_LST"
+			pick "Lodor - connect to your RomM server" "SELECT"; _wl_rc=$?
+			case "$_wl_rc" in
+				0)
+					case "$PICK_VAL" in
+						"Set up now") _wl_go=1; break ;;
+						"Not now")    break ;;
+						*)            continue ;;   # info row picked -> redraw the page
+					esac ;;
+				2|3) break ;;                       # B / MENU -> clean exit, ask again next open
+				*)   _wl_go=1; break ;;             # render failure -> the wizard degrades honestly itself
+			esac
+		done
+		if [ "$_wl_go" != 1 ]; then
+			log "onboarding: welcome declined (Not now / back) - exiting until next open"
+			ui_clear
+			exit 0
+		fi
+	fi
 	run_wizard || true
 	if ! creds_present; then
 		log "onboarding: not completed (cancelled or failed) - exiting until next open"
@@ -1748,7 +1845,7 @@ if [ "$needs_wiring" = 1 ]; then
 		done
 	done
 	if [ "$wired_ok" != 1 ]; then
-		ui_msg_timed "Couldn't wire auto-sync hooks - check the SD card, then retry" 4
+		ui_error_ack "Couldn't wire auto-sync hooks - check the SD card, then retry"
 		exit 1
 	fi
 	log "hooks self-installed + verified (first_install=$hooks_first)"

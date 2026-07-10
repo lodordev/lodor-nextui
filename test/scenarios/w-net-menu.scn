@@ -1,5 +1,6 @@
 desc MENU at the network choice exits the wizard cleanly
 ts present
+pick 0|Set up now
 pick 3|
 expect_exit 0
 expect_config_absent

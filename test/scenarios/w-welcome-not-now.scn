@@ -1,0 +1,8 @@
+# UX #4: the first open shows an orientation page (what Lodor does) instead of a 3s flash;
+# "Not now" exits cleanly, writes nothing, and the page returns on the next open.
+desc welcome page: Not now exits cleanly with no config and no wizard
+pick 0|Not now
+expect_exit 0
+expect_config_absent
+expect_trace_absent KB[
+expect_log onboarding: welcome declined

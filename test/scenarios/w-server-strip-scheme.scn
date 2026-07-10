@@ -1,4 +1,5 @@
 desc pasted https://host/ is stripped to a bare host before --set-server
+pick 0|Set up now
 pick 0|https (secure, recommended)
 kb 0|https://romm.example.com/
 kb 2|

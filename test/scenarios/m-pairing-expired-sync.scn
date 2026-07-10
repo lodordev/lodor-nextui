@@ -8,9 +8,11 @@ config paired
 seeded
 pick 0|Sync now
 engine 6|PAIRING_EXPIRED
+# dismiss the ack error screen (#6), then the redrawn menu carries the banner
+pick 2|
 pick 0|! Pairing expired - re-pair
 pick 2|
 expect_exit 0
-expect_trace PRES timeout=4 msg='Pairing expired - run Setup / Re-pair'
+expect_log err: Pairing expired - run Setup / Re-pair
 expect_trace LIST[RomM server protocol]
 expect_file Tools/tg5040/Lodor.pak/.pairing-expired

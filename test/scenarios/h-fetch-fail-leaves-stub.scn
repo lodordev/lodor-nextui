@@ -9,5 +9,5 @@ sdfile Roms/Game Boy Advance (GBA)/✘ Zelda.gba
 engine 4|
 expect_exit 0
 expect_trace ENGINE --download
-expect_trace SHOW2 simple text='Download failed — check Wi-Fi'
+expect_trace SHOW2 simple text='The server had a problem sending this game — try again. The game screen that follows will fail to open — that's expected. Fix the connection and launch again.'
 expect_file_empty Roms/Game Boy Advance (GBA)/✘ Zelda.gba

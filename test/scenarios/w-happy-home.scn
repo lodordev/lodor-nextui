@@ -1,6 +1,7 @@
 desc full happy path via Home/public URL with Tailscale offered and declined
 ts present
 timeout 60
+pick 0|Set up now
 pick 0|Home network / public URL
 pick 0|https (secure, recommended)
 kb 0|romm.example.com

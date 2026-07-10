@@ -1,4 +1,5 @@
 desc register failure (REGFAIL) surfaces honestly and the step retries to success
+pick 0|Set up now
 pick 0|https (secure, recommended)
 kb 0|romm.example.com
 kb 0|
@@ -13,5 +14,5 @@ engine 0|RESULT registered=1
 engine 0|RESULT mirrored ok
 pick 2|
 expect_exit 0
-expect_trace PRES timeout=5 msg='Register failed: name taken (scripted)'
+expect_log err: Register failed: name taken (scripted)
 expect_config_has "device_name"

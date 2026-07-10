@@ -9,4 +9,4 @@ pick 0|Tailscale: Reconnect
 pick 2|
 expect_exit 0
 expect_trace PRES timeout=-1 msg='Reconnecting Tailscale...'
-expect_trace PRES timeout=6 msg='Couldn't reconnect - Tailscale didn't reach Running. Check Wi-Fi (details: tailscaled.log).'
+expect_log err: Couldn't reconnect - Tailscale didn't reach Running. Check Wi-Fi (details: tailscaled.log)

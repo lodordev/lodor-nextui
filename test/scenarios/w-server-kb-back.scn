@@ -1,4 +1,5 @@
 desc B at the server-address keyboard exits the wizard
+pick 0|Set up now
 pick 0|https (secure, recommended)
 kb 2|
 expect_exit 0

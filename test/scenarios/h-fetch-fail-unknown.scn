@@ -1,0 +1,13 @@
+# UX #2: an UNKNOWN rc from the download must never claim "check Wi-Fi" — honest unknown-cause
+# copy pointing at the log; stub intact; launch proceeds (#3 expectation line, minus the
+# fix-the-connection coda no unknown cause can promise).
+desc fetch hook: unknown rc -> unknown-cause copy (never "check Wi-Fi"), stub intact
+invoke prehook
+config paired
+romarg Roms/Game Boy Advance (GBA)/✘ Zelda.gba
+sdfile Roms/Game Boy Advance (GBA)/✘ Zelda.gba
+engine 9|
+expect_exit 0
+expect_trace SHOW2 simple text='Couldn't download Zelda — unknown cause, try again (details in last-sync.log). The game screen that follows will fail to open — that's expected.'
+expect_trace_absent check Wi-Fi
+expect_file_empty Roms/Game Boy Advance (GBA)/✘ Zelda.gba

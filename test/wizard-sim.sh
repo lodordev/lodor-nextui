@@ -282,6 +282,7 @@ rm -rf /tmp/lodor-ts-state /tmp/lodor-qr-state /tmp/lodor-tailscaled.sock \
        /tmp/lodor-menu-out /tmp/lodor-menu-list /tmp/lodor-setup-kb /tmp/lodor-setup-pick \
        /tmp/lodor-setup-pick-list /tmp/lodor-feed-list /tmp/lodor-feed-out /tmp/lodor-feed.txt \
        /tmp/lodor-user-list /tmp/lodor-user-ids /tmp/lodor-user-out /tmp/lodor-gm-ids \
+       /tmp/lodor-error-list /tmp/lodor-error-out \
        /tmp/romm-wifi.lock /tmp/romm-phase /tmp/show2.fifo /tmp/dl-progress 2>/dev/null
 
 # ---- run ----

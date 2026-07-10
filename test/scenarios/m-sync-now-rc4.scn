@@ -6,4 +6,4 @@ pick 0|Sync now
 pick 2|
 engine 4|
 expect_exit 0
-expect_trace PRES timeout=4 msg='Sync finished with errors - some items didn't sync, try again'
+expect_log err: Sync finished with errors - some items didn't sync, try again

@@ -6,6 +6,13 @@ export LODOR_HOST_OS=nextui
 # never brings the radio up and never powers it down. It sets SSL_CERT_FILE + the engine's path env
 # (BASE_PATH / SDCARD_PATH / PLATFORM), then runs lodor-sync from the pak dir so config.json loads
 # CWD-relative. Logs every step to Lodor.pak/romm-run.log.
+#
+# RESERVED WRAPPER EXIT CODES (#2) — far outside the engine's 0-6 range so callers can tell a
+# wrapper-level failure from an engine result (exit 3 used to mean BOTH "engine: server
+# unreachable" AND "wrapper: binary missing", and Wi-Fi-down used the engine-ish 2):
+#   101 = this pak is broken (lodor-sync or lib/romm-sync-lib.sh missing) — reinstall, not Wi-Fi
+#   102 = Wi-Fi not connected (NextUI owns the radio; we only ride it)
+# Every other exit code is the ENGINE'S OWN, passed through untouched.
 SDCARD="${SDCARD_PATH:-/mnt/SDCARD}"
 PLAT="${PLATFORM:-tg5040}"
 PAKD="$SDCARD/Tools/$PLAT/Lodor.pak"
@@ -16,16 +23,16 @@ log(){ echo "$(date +'%F %T') $*" >> "$LOG" 2>/dev/null; }
 
 log "=== invoke: $* ==="
 export WIFI_LOG="$PAKD/wifi.log"
-. "$LIB" 2>/dev/null || { log "FATAL: lib source failed: $LIB"; exit 1; }
+. "$LIB" 2>/dev/null || { log "FATAL: lib source failed: $LIB -> exit 101 (pak broken)"; exit 101; }
 
-[ -x "$BIN" ] || { log "FATAL: binary missing/not-exec: $BIN"; exit 3; }
+[ -x "$BIN" ] || { log "FATAL: binary missing/not-exec: $BIN -> exit 101 (pak broken)"; exit 101; }
 rm -f /tmp/dl-progress 2>/dev/null
 
 # RIDE the existing NextUI Wi-Fi connection. wifi_acquire only checks link+IP and takes the
 # coordination mutex; it NEVER powers the radio. Honest exit if Wi-Fi is off.
 if ! wifi_acquire fg; then
-	log "wifi_acquire FAILED (wlan0 not connected) -> exit 2"
-	exit 2
+	log "wifi_acquire FAILED (wlan0 not connected) -> exit 102"
+	exit 102
 fi
 log "wifi_acquire OK (host=${ROMM_HOST:-unknown})"
 

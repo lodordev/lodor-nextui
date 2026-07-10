@@ -1,0 +1,11 @@
+# UX #2: romm-run's reserved Wi-Fi-down code (102) maps to the Wi-Fi copy + the #3
+# expectation line; the wrapper no longer collides with engine exit codes.
+desc fetch hook: wrapper rc=102 (Wi-Fi down) -> Wi-Fi copy + expectation line, stub intact
+invoke prehook
+config paired
+romarg Roms/Game Boy Advance (GBA)/✘ Zelda.gba
+sdfile Roms/Game Boy Advance (GBA)/✘ Zelda.gba
+engine 102|
+expect_exit 0
+expect_trace SHOW2 simple text='Wi-Fi not connected — enable it in NextUI Settings. The game screen that follows will fail to open — that's expected. Fix the connection and launch again.'
+expect_file_empty Roms/Game Boy Advance (GBA)/✘ Zelda.gba

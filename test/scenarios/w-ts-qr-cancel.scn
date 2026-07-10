@@ -1,5 +1,6 @@
 desc QR cancelled by user: abort with NO text fallback, back at network choice, B exits
 ts present
+pick 0|Set up now
 pick 0|Tailscale (sign in with QR)
 tsurl https://login.tailscale.com/a/stub123
 tsstatus pending
@@ -8,4 +9,4 @@ pick 2|
 expect_exit 0
 expect_config_absent
 expect_trace_absent Sign in at:
-expect_trace PRES timeout=5 msg='Tailscale sign-in didn't complete. Try again, or use Home / public URL.'
+expect_log err: Tailscale sign-in didn't complete. Try again, or use Home / public URL.

@@ -1,4 +1,5 @@
 desc empty server address: honest message, step retries, B then exits
+pick 0|Set up now
 pick 0|https (secure, recommended)
 kb 0|
 kb 2|

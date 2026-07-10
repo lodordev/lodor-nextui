@@ -7,4 +7,4 @@ pick 0|Also remove downloaded games
 engine 0|RESULT uninstalled=0 removed=0 kept_downloads=0 skipped=0
 pick 2|
 expect_exit 0
-expect_trace PRES timeout=5 msg='Nothing removed - Lodor's file records were missing. Run Refresh library once, then retry.'
+expect_log err: Nothing removed - Lodor's file records were missing. Run Refresh library once, then retry.

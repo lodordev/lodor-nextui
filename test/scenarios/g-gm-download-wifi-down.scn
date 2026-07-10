@@ -10,4 +10,4 @@ pick 0|Download now
 pick 2|
 expect_exit 0
 expect_trace_absent ENGINE --download
-expect_trace PRES timeout=4 msg='Wi-Fi not connected - enable it in NextUI Settings, then retry'
+expect_log err: Wi-Fi not connected - enable it in NextUI Settings, then retry

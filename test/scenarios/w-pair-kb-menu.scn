@@ -1,4 +1,5 @@
 desc MENU at the pairing-code keyboard aborts; no token
+pick 0|Set up now
 pick 0|https (secure, recommended)
 kb 0|romm.example.com
 kb 0|

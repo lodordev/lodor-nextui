@@ -1,6 +1,7 @@
 desc Tailscale QR happy path: sign-in completes, tier-1 marked, onboarding completes
 ts present
 timeout 60
+pick 0|Set up now
 pick 0|Tailscale (sign in with QR)
 pick 0|http (plain)
 tsurl https://login.tailscale.com/a/stub123

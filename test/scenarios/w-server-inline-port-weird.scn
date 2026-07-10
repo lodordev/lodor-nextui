@@ -1,6 +1,7 @@
 # UX fallback: a colon suffix that is NOT a clean number is never silently mangled — the
 # address stays as typed and the explicit port step still runs.
 desc wizard: non-numeric colon suffix falls back to the separate port step
+pick 0|Set up now
 pick 0|https (secure, recommended)
 kb 0|romm.example.com:80a8
 kb 0|8443

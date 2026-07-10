@@ -197,7 +197,9 @@ fi
 
 # Still a 0-byte stub (download failed / offline): launching it would strand the user on
 # the emulator's own load-error screen — stop here with the honest cause instead.
-[ -s "$ROM" ] || empty_state "Couldn't download $DISP - check Wi-Fi"
+# The pre-hook just showed the REAL cause on its own splash — don't overwrite it with a
+# guessed one (#2: never "check Wi-Fi" for an unknown cause).
+[ -s "$ROM" ] || empty_state "Couldn't download $DISP - try again (details in last-sync.log)"
 
 killall minui-presenter >/dev/null 2>&1 || true
 sh "$EMU" "$ROM"   # CHILD, not exec — the push bracket + scrub below must still run

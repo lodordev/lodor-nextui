@@ -1,9 +1,12 @@
 desc B on the port re-entry keeps the previously-typed port (regression: silently dropped)
+pick 0|Set up now
 pick 0|https (secure, recommended)
 kb 0|romm.example.com
 kb 0|8443
 pick 0|Verify TLS certificate (recommended)
 engine 1|SETSERVERFAIL server rejected (scripted)
+# dismiss the ack error screen (#6) before the retry
+pick 2|
 pick 0|https (secure, recommended)
 kb 0|romm.example.com
 kb 2|

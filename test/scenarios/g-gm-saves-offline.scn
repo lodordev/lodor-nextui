@@ -12,4 +12,4 @@ pick 2|
 engine 3|
 expect_exit 0
 expect_trace_absent PRES timeout=3 msg='No server saves for ✓ Zelda.gba'
-expect_trace PRES timeout=4 msg='Couldn't reach your server - check the server or your connection, then retry'
+expect_log err: Couldn't reach your server - check the server or your connection, then retry
