@@ -60,6 +60,7 @@ for PLAT in tg5040 tg5050; do
   cp -r "$PAKSRC/ctpak" "$D/ctpak"   # Continue root-entry sources (task #134, same self-heal pattern)
   cp "$PAKSRC/bin/romm-run" "$D/bin/romm-run"
   cp "$PAKSRC/bin/romm-syncd" "$D/bin/romm-syncd"
+  cp "$PAKSRC/bin/post-uninstall.sh" "$D/bin/post-uninstall.sh"   # store post_uninstall hook (#30)
   cp "$PAKSRC/pak.json" "$D/pak.json"
   cp "$PAKSRC/config.json.template" "$D/config.json.template"
   cp "$ENG" "$D/lodor-sync"
@@ -102,7 +103,7 @@ for PLAT in tg5040 tg5050; do
   cp "$TSBIN/tailscale"  "$D/bin/tailscale/tailscale"
   # standalone SDL QR helper (host rendering only; drawn in-pak, no NextUI fork).
   cp "$QRBIN_OUT" "$D/bin/$PLAT/lodor-qr"
-  chmod +x "$D/launch.sh" "$D/lodor-sync" "$D/bin/romm-run" "$D/bin/romm-syncd" \
+  chmod +x "$D/launch.sh" "$D/lodor-sync" "$D/bin/romm-run" "$D/bin/romm-syncd" "$D/bin/post-uninstall.sh" \
            "$D/bin/7zz" "$D/bin/$PLAT/minui-list" "$D/bin/$PLAT/minui-presenter" \
            "$D/bin/$PLAT/minui-keyboard" "$D/bin/tailscale/tailscaled" \
            "$D/bin/tailscale/tailscale" "$D/bin/$PLAT/lodor-qr"
