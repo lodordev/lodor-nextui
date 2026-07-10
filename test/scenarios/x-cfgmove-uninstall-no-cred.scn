@@ -1,0 +1,21 @@
+# fixes #30: after "Remove Lodor from this card", NO Lodor credential may remain anywhere on the card.
+# config.json now lives IN the pak dir, so the store os.RemoveAll(pak) wipes it; the in-menu uninstall
+# ALSO clears it (and sweeps any pre-#30 shared residue) so a keep-downloads uninstall still de-pairs.
+desc cfgmove #30: uninstall clears the RomM token from the pak dir AND any old shared residue
+config paired
+seeded
+settings mirror_mode=merge
+sdtext .userdata/shared/Lodor/config.json	{"hosts":[{"token":"STALE-SHARED-TOKEN"}]}
+sdfile Tools/tg5040/Lodor.pak/.pairing-expired
+pick 0|Remove Lodor from this card
+pick 0|Keep my downloaded games
+engine 0|RESULT uninstalled=1 removed=5 kept_downloads=2 skipped=0
+pick 2|
+expect_exit 0
+expect_file_absent Tools/tg5040/Lodor.pak/config.json
+expect_file_absent Tools/tg5040/Lodor.pak/settings.conf
+expect_file_absent Tools/tg5040/Lodor.pak/active-profile.txt
+expect_file_absent Tools/tg5040/Lodor.pak/.pairing-expired
+expect_file_absent .userdata/shared/Lodor/config.json
+expect_file_absent .userdata/shared/Lodor/settings.conf
+expect_file_absent .userdata/shared/Lodor/active-profile.txt

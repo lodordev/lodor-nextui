@@ -4,7 +4,7 @@
 # ONE pak, two states (this pak replaces the old split of "Lodor.pak" + "Lodor Setup.pak"):
 #   - NOT configured yet -> run the on-device onboarding WIZARD (server URL -> pairing code ->
 #     device name), shelling the SAME arm64 engine (lodor-sync) via --set-server / --pair /
-#     --register-device to write config.json into NextUI's SHARED userdata. No JSON editing.
+#     --register-device to write config.json into the pak dir (Tools/<plat>/Lodor.pak). No JSON editing.
 #   - Already configured -> the normal CLIENT: first-run hook self-install + background sync daemon,
 #     then the Tools menu (Sync now / Pending saves / Refresh library / Game Manager / Search
 #     library / Download queue / Download BIOS / Recent activity / Switch user / Box art /
@@ -243,8 +243,8 @@ ui_msg_timed() {  # blocking message for N seconds (default 3)
 }
 ui_clear() { killall minui-presenter >/dev/null 2>&1 || true; }
 
-# settings.conf lives beside config.json in the shared config home (LODOR_CFG_DIR, from the lib) so
-# the engine reads the toggle CWD-relative there. Migrate any legacy in-pak settings.conf first.
+# settings.conf lives beside config.json in the pak dir (LODOR_CFG_DIR, from the lib; #30) so the
+# engine reads the toggle CWD-relative there. Migrate any settings.conf left in the old shared home.
 lodor_migrate_cfg
 SETTINGS="$LODOR_CFG_DIR/settings.conf"
 SEED_SENTINEL="$PAKDIR/.library-seeded"
@@ -629,7 +629,7 @@ run_net() {
 }
 
 # eng_offline — run an OFFLINE engine mode (set-server writes config only). No Wi-Fi required. CWD =
-# LODOR_CFG_DIR so config.json lands in NextUI shared userdata; env mirrors romm-run. Sets NET_OUT/RC.
+# LODOR_CFG_DIR (the pak dir now, #30) so config.json lands there; env mirrors romm-run. Sets NET_OUT/RC.
 eng_offline() {
 	NET_OUT="$(cd "$LODOR_CFG_DIR" 2>/dev/null && \
 		BASE_PATH="$SDCARD" SDCARD_PATH="$SDCARD" PLATFORM="$PLAT" LODOR_PAK_DIR="$LODOR_PAK_DIR" \
@@ -1075,9 +1075,16 @@ do_uninstall_lodor() {
 	rm -rf "$SDCARD/Emus/$PLAT/$GM_TAG.pak" "$SDCARD/Emus/$PLAT/$CT_TAG.pak" 2>/dev/null
 	scrub_recents
 	rm -f "$SEED_SENTINEL" 2>/dev/null
+	# Credential wipe (fixes #30): config.json / settings.conf / active-profile.txt now live in the
+	# pak dir, so removing them here means a "Remove Lodor" that keeps downloads still clears the RomM
+	# token immediately (not only when the user later deletes the pak dir). Also sweep the OLD shared
+	# home in case a pre-#30 install left creds there (belt-and-suspenders; migration usually moved them).
+	for _un_cf in config.json settings.conf active-profile.txt .pairing-expired; do
+		rm -f "$LODOR_CFG_DIR/$_un_cf" "${SHARED_USERDATA_PATH:-$SDCARD/.userdata/shared}/Lodor/$_un_cf" 2>/dev/null
+	done
 	ui_clear
 	if [ "$_un_ok" = 1 ]; then
-		ui_msg_timed "Removed ${_un_n:-0} Lodor file(s). Delete Tools/$BINPLAT/Lodor.pak (and Lodor's config in .userdata/shared) to finish." 6
+		ui_msg_timed "Removed ${_un_n:-0} Lodor file(s) and cleared pairing. Delete Tools/$BINPLAT/Lodor.pak to finish." 6
 	else
 		ui_msg_timed "Nothing removed - Lodor's file records were missing. Run Refresh library once, then retry." 5
 	fi

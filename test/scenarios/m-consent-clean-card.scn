@@ -3,5 +3,5 @@ config paired
 seeded
 pick 2|
 expect_exit 0
-expect_file_has .userdata/shared/Lodor/settings.conf	mirror_mode=merge
+expect_file_has Tools/tg5040/Lodor.pak/settings.conf	mirror_mode=merge
 expect_trace_absent Where should RomM games go?

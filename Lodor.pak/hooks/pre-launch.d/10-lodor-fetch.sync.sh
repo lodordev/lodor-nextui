@@ -129,7 +129,7 @@ if [ ! -s "$HOOK_ROM_PATH" ]; then
 		# mask the failure; the cause shown maps the engine/romm-run exit honestly (task #120/#124).
 		case "$dlrc" in
 			6) # PAIRING_EXPIRED contract (engine exit 6): flag it for the Tools-menu banner too.
-			   : > "${SHARED_USERDATA_PATH:-$SDCARD/.userdata/shared}/Lodor/.pairing-expired" 2>/dev/null
+			   : > "$PAKDIR/.pairing-expired" 2>/dev/null
 			   ui_error "Pairing expired — open Tools > Lodor to re-pair" ;;
 			2) ui_error "Wi-Fi not connected — enable it in NextUI Settings" ;;
 			3) ui_error "Couldn't reach your server — check Wi-Fi" ;;
@@ -164,7 +164,7 @@ nsaves=0; [ -n "$saves" ] && nsaves="$(printf '%s\n' "$saves" | wc -l | tr -d ' 
 # OFFLINE / LIST FAILURE (rc!=0 — exit 3 unreachable, 6 pairing-expired, 2 no Wi-Fi): launch with
 # the local save, honestly logged. NEVER claim "no server saves" when we couldn't ask.
 if [ "$lsrc" != 0 ]; then
-	[ "$lsrc" = 6 ] && : > "${SHARED_USERDATA_PATH:-$SDCARD/.userdata/shared}/Lodor/.pairing-expired" 2>/dev/null
+	[ "$lsrc" = 6 ] && : > "$PAKDIR/.pairing-expired" 2>/dev/null
 	slog "saves: listed=0 newest=none action=offline (rc=$lsrc) game=$GAME"
 	exit 0
 fi

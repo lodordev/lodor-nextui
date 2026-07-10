@@ -5,5 +5,5 @@ settings mirror_mode=merge
 pick 0|RomM games: Mixed into your folders
 pick 2|
 expect_exit 0
-expect_file_has .userdata/shared/Lodor/settings.conf	mirror_mode=separate
+expect_file_has Tools/tg5040/Lodor.pak/settings.conf	mirror_mode=separate
 expect_trace PRES timeout=3 msg='RomM games get their own folders. Run Refresh library to apply.'

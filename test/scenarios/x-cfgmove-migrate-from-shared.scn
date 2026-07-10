@@ -1,0 +1,18 @@
+# fixes #30 (2026-07-10, reverses the 2026-06-30 shared-config decision): a device paired under the
+# OLD scheme (config.json in .userdata/shared/Lodor) must NOT be forced to re-onboard on this update.
+# lodor_migrate_cfg moves the old shared config INTO the pak dir on the first pak open, non-destructively.
+desc cfgmove #30: pre-#30 shared config is migrated into the pak dir on open, then removed from shared
+oldconfig paired
+seeded
+pick 0|Sync now
+pick 2|
+engine 0|RESULT ok
+expect_exit 0
+# migrated INTO the pak dir, carrying the old token (no re-onboarding)
+expect_file_has Tools/tg5040/Lodor.pak/config.json	OLD-SHARED-TOKEN
+expect_file_has Tools/tg5040/Lodor.pak/settings.conf	mirror_mode=merge
+expect_file_has Tools/tg5040/Lodor.pak/active-profile.txt	old-device
+# and NON-DESTRUCTIVELY removed from the old shared home (no lingering credential)
+expect_file_absent .userdata/shared/Lodor/config.json
+expect_file_absent .userdata/shared/Lodor/settings.conf
+expect_file_absent .userdata/shared/Lodor/active-profile.txt

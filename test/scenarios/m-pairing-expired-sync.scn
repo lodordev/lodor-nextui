@@ -13,4 +13,4 @@ pick 2|
 expect_exit 0
 expect_trace PRES timeout=4 msg='Pairing expired - run Setup / Re-pair'
 expect_trace LIST[RomM server protocol]
-expect_file .userdata/shared/Lodor/.pairing-expired
+expect_file Tools/tg5040/Lodor.pak/.pairing-expired

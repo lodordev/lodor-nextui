@@ -5,4 +5,4 @@ sdfile Roms/Game Boy Advance RomM (GBA)/[^] Old Stub (RomM).gba
 pick 2|
 pick 2|
 expect_exit 0
-expect_file_absent .userdata/shared/Lodor/settings.conf
+expect_file_absent Tools/tg5040/Lodor.pak/settings.conf

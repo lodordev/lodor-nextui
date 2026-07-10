@@ -5,5 +5,5 @@ sdfile Roms/Game Boy Advance RomM (GBA)/[^] Old Stub (RomM).gba
 pick 0|Keep them in separate folders
 pick 2|
 expect_exit 0
-expect_file_has .userdata/shared/Lodor/settings.conf	mirror_mode=separate
+expect_file_has Tools/tg5040/Lodor.pak/settings.conf	mirror_mode=separate
 expect_trace PRES timeout=3 msg='RomM games stay in their own folders.'

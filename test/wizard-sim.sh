@@ -82,8 +82,12 @@ SD="$ROOT/sdcard"
 PAK="$SD/Tools/tg5040/Lodor.pak"
 SIM="$ROOT/sim"
 BIN="$ROOT/bin"
-CFGDIR="$SD/.userdata/shared/Lodor"
-mkdir -p "$PAK/bin/tg5040" "$SIM/q" "$BIN" "$CFGDIR"
+# fixes #30: config now lives IN the pak dir (Tools/<plat>/Lodor.pak), not the shared userdata.
+# CFGDIR is where seed_config writes and where the config assertions look; OLDCFGDIR is the pre-#30
+# shared home, kept so migration + uninstall scenarios can seed/inspect it.
+CFGDIR="$PAK"
+OLDCFGDIR="$SD/.userdata/shared/Lodor"
+mkdir -p "$PAK/bin/tg5040" "$SIM/q" "$BIN" "$CFGDIR" "$OLDCFGDIR"
 
 # ---- lay down the REAL pak scripts ----
 cp "$PAKSRC/launch.sh" "$PAK/launch.sh"
@@ -238,6 +242,22 @@ while IFS= read -r raw || [ -n "$raw" ]; do
 		no-kb)     rm -f "$PAK/bin/tg5040/minui-keyboard" ;;
 		no-list)   rm -f "$PAK/bin/tg5040/minui-list" ;;
 		config)    seed_config "$arg" ;;
+		oldconfig) # seed a paired config into the PRE-#30 shared home, to drive lodor_migrate_cfg
+			mkdir -p "$OLDCFGDIR"
+			cat > "$OLDCFGDIR/config.json" <<'OLDEOF'
+{
+  "hosts": [
+    {
+      "root_uri": "https://old.example.com",
+      "device_name": "old-device",
+      "token": "OLD-SHARED-TOKEN",
+      "stub": true
+    }
+  ]
+}
+OLDEOF
+			printf 'mirror_mode=merge\n' > "$OLDCFGDIR/settings.conf"
+			printf 'old-device\n' > "$OLDCFGDIR/active-profile.txt" ;;
 		seeded)    : > "$PAK/.library-seeded" ;;
 		sdfile)    mkdir -p "$SD/$(dirname "$arg")"; : > "$SD/$arg" ;;                       # 0-byte stub
 		sdfile+)   mkdir -p "$SD/$(dirname "$arg")"; printf 'REALBYTES\n' > "$SD/$arg" ;;    # real (downloaded) file

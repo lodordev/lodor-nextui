@@ -9,4 +9,4 @@ sdfile+ Roms/Game Boy Advance (GBA)/✓ Zelda.gba
 engine 6|PAIRING_EXPIRED
 expect_exit 0
 expect_trace ENGINE --push-save
-expect_file .userdata/shared/Lodor/.pairing-expired
+expect_file Tools/tg5040/Lodor.pak/.pairing-expired

@@ -19,25 +19,45 @@ ROMM_PAK_DIR="$SDCARD/Tools/$PLAT/Lodor.pak"
 export LODOR_PAK_DIR="$ROMM_PAK_DIR"
 SYNC_BIN="$ROMM_PAK_DIR/lodor-sync"
 
-# --- config home (NextUI SHARED userdata, NOT the pak dir) --------------------
-# Decision 2026-06-30: config.json / settings.conf / active-profile.txt live under
-# $SHARED_USERDATA_PATH (= $SDCARD/.userdata/shared on NextUI) so the RomM token + UI toggles
-# survive a pak reinstall and are shared across NextUI profiles. The engine reads all three
-# CWD-relative, so every caller cd's into LODOR_CFG_DIR before exec. Engine STATE
-# (catalog-index.json / pending-saves.txt / download-queue.txt) still follows LODOR_PAK_DIR (the
-# pak) — so nothing host-specific leaks into the engine; the engine binary is unchanged.
-LODOR_CFG_DIR="${SHARED_USERDATA_PATH:-$SDCARD/.userdata/shared}/Lodor"
+# --- config home (INSIDE the pak dir) ----------------------------------------
+# Decision 2026-07-10 (fixes #30, REVERSES the 2026-06-30 shared-config decision):
+# config.json / settings.conf / active-profile.txt live in the pak dir ($ROMM_PAK_DIR =
+# $SDCARD/Tools/$PLAT/Lodor.pak), NOT NextUI shared userdata. WHY: the store uninstall is
+# os.RemoveAll(pakLocation) — anything OUTSIDE the pak (the old shared home) SURVIVES it, so the
+# RomM token + Cloudflare-Access creds lingered on a card the user thought was clean, and a
+# reinstall skipped onboarding (bug #30). Putting config IN the pak means uninstall wipes it and
+# update_ignore (pak.store.json) preserves it across UPDATES. The engine reads all three files
+# CWD-relative, so every caller cd's into LODOR_CFG_DIR (now the pak dir) before exec; engine STATE
+# (catalog-index.json / pending-saves.txt / download-queue.txt) already followed LODOR_PAK_DIR, so
+# config joining it is consistent and the engine binary is unchanged.
+# ACCEPTED COST: an uninstall->reinstall now requires re-pairing (~2 min, arguably correct); the
+# cross-profile config sharing of the old scheme is dropped. tailscaled.state (.userdata/$PLAT/
+# tailscale/) is device TUNNEL state, not a Lodor credential — it deliberately stays put.
+LODOR_CFG_DIR="$ROMM_PAK_DIR"
 export LODOR_CFG_DIR
 
-# lodor_migrate_cfg — one-time, idempotent, non-destructive move of any legacy in-pak config into
-# LODOR_CFG_DIR. Only moves a file present in the pak AND absent in the shared dir; never overwrites
-# a shared-dir file. Safe to call on every invocation.
+# lodor_migrate_cfg — one-time, idempotent, non-destructive migration of any config left in the OLD
+# shared home ($SHARED_USERDATA_PATH/Lodor, the 2026-06-30 scheme) INTO the pak dir, so users paired
+# under the old scheme are not forced to re-onboard on THIS update (only a future uninstall clears
+# it). Only moves a file present in the OLD shared dir AND absent in the pak dir; NEVER overwrites a
+# newer pak-dir file. Atomic + FAT32/exFAT-safe (temp in the destination dir + rename + fsync, prior
+# art: tailscale-lib.sh tailscale_mark_tier1). mv across the two dirs is a cross-tree rename that
+# busybox may reject (EXDEV) — so this copies-to-temp-then-renames within the pak dir, then removes
+# the shared original, which is atomic on the destination FS. Safe to call on every invocation.
 lodor_migrate_cfg() {
-	mkdir -p "$LODOR_CFG_DIR" 2>/dev/null || return 0
+	_MIG_OLD="${SHARED_USERDATA_PATH:-$SDCARD/.userdata/shared}/Lodor"
+	# Nothing to do when the pak IS the old dir (defensive) or the old dir is absent.
+	[ "$_MIG_OLD" = "$LODOR_CFG_DIR" ] && return 0
+	[ -d "$_MIG_OLD" ] || return 0
 	for _cf in config.json settings.conf active-profile.txt; do
-		if [ -f "$ROMM_PAK_DIR/$_cf" ] && [ ! -f "$LODOR_CFG_DIR/$_cf" ]; then
-			mv -f "$ROMM_PAK_DIR/$_cf" "$LODOR_CFG_DIR/$_cf" 2>/dev/null || \
-				cp -f "$ROMM_PAK_DIR/$_cf" "$LODOR_CFG_DIR/$_cf" 2>/dev/null
+		if [ -f "$_MIG_OLD/$_cf" ] && [ ! -f "$LODOR_CFG_DIR/$_cf" ]; then
+			_mtmp="$LODOR_CFG_DIR/.$_cf.mig.$$"
+			if cp -f "$_MIG_OLD/$_cf" "$_mtmp" 2>/dev/null && mv -f "$_mtmp" "$LODOR_CFG_DIR/$_cf" 2>/dev/null; then
+				sync 2>/dev/null
+				rm -f "$_MIG_OLD/$_cf" 2>/dev/null
+			else
+				rm -f "$_mtmp" 2>/dev/null
+			fi
 		fi
 	done
 	return 0
@@ -328,8 +348,8 @@ run_sync() {
 	case "${1:---push-pending}" in
 		--sync-save|--push-save|--push-pending|--pull-saves|--restore-save) lodor_ensure_device ;;
 	esac
-	# CWD = LODOR_CFG_DIR so the engine loads config.json / settings.conf / active-profile.txt from
-	# NextUI's shared userdata; LODOR_PAK_DIR (already exported) keeps engine STATE in the pak.
+	# CWD = LODOR_CFG_DIR (the pak dir now) so the engine loads config.json / settings.conf /
+	# active-profile.txt CWD-relative; LODOR_PAK_DIR (already exported, same dir) keeps engine STATE.
 	( cd "$LODOR_CFG_DIR" || exit 2
 	  export BASE_PATH="$SDCARD"
 	  export SDCARD_PATH="$SDCARD"

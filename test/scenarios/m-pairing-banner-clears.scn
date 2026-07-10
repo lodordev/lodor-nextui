@@ -5,7 +5,7 @@
 desc menu (#124): pairing-expired banner shows from the flag; a successful sync clears it
 config paired
 seeded
-sdfile .userdata/shared/Lodor/.pairing-expired
+sdfile Tools/tg5040/Lodor.pak/.pairing-expired
 pick 0|! Pairing expired - re-pair
 pick 2|
 pick 0|Sync now
@@ -14,4 +14,4 @@ pick 2|
 expect_exit 0
 expect_trace LIST[RomM server protocol]
 expect_trace PRES timeout=2 msg='Sync complete'
-expect_file_absent .userdata/shared/Lodor/.pairing-expired
+expect_file_absent Tools/tg5040/Lodor.pak/.pairing-expired

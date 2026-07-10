@@ -7,5 +7,5 @@ pick 0|Keep my downloaded games
 engine 0|RESULT uninstalled=1 removed=12 kept_downloads=3 skipped=0
 pick 2|
 expect_exit 0
-expect_trace PRES timeout=6 msg='Removed 12 Lodor file(s). Delete Tools/tg5040/Lodor.pak (and Lodor's config in .userdata/shared) to finish.'
+expect_trace PRES timeout=6 msg='Removed 12 Lodor file(s) and cleared pairing. Delete Tools/tg5040/Lodor.pak to finish.'
 expect_file_absent Roms/Game Manager (LODORGM)/Open Game Manager.gm

@@ -4,8 +4,8 @@
 #
 # PORT of lodoros/paks/Lodor.pak/lib/tailscale-lib.sh, adapted for stock NextUI. NextUI
 # differences from the LodorOS fork:
-#   - config.json lives in the SHARED config home ($LODOR_CFG_DIR), NOT the pak dir, so the
-#     hostname read + tier-1 marker key off $LODOR_CFG_DIR/config.json.
+#   - config.json lives in the pak dir ($LODOR_CFG_DIR = the pak dir since #30, 2026-07-10), so
+#     the hostname read + tier-1 marker key off $LODOR_CFG_DIR/config.json (follows the move for free).
 #   - Tailscale binaries are bundled in the pak at bin/tailscale/{tailscaled,tailscale}
 #     (both target devices are arm64, so one copy serves both).
 #   - tg5050 is added to the capability gate (both TrimUI devices are 1 GB, capable).
@@ -32,7 +32,7 @@ _TS_SHARED_DIR="$SDCARD/.system/.tailscale/$(_ts_arch)"
 if [ -z "${TS_BIN_DIR:-}" ] && [ -x "$_TS_SHARED_DIR/tailscaled" ]; then TS_BIN_DIR="$_TS_SHARED_DIR"; fi
 TS_BIN_DIR="${TS_BIN_DIR:-$ROMM_PAK_DIR/bin/tailscale}"
 
-# config.json lives in the SHARED config home on NextUI (not the pak).
+# config.json lives in the pak dir (LODOR_CFG_DIR = the pak dir since #30); this follows it.
 _TS_CFG="${LODOR_CFG_DIR:-$ROMM_PAK_DIR}/config.json"
 
 TS_STATEDIR="${TS_STATEDIR:-/tmp/lodor-ts-state}"

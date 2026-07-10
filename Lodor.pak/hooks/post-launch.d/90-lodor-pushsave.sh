@@ -52,7 +52,8 @@ _ssrc=$?
 # PAIRING_EXPIRED (task #124): engine exit 6 = token revoked/expired. This hook draws nothing
 # (the launcher owns the screen again), so flag it for the Tools-menu banner instead.
 if [ "$_ssrc" = 6 ]; then
-	: > "${SHARED_USERDATA_PATH:-$SDCARD/.userdata/shared}/Lodor/.pairing-expired" 2>/dev/null
+	# .pairing-expired lives beside config.json in the pak dir now (#30); launch.sh reads it there.
+	: > "$PAK/.pairing-expired" 2>/dev/null
 fi
 
 # 2. --reconcile flips the marker and carries the save + cover with the rename. It is filesystem-only
@@ -60,10 +61,9 @@ fi
 # a downloaded game must get its ✓ even when Wi-Fi is off. No-op for a game that is still a 0-byte stub
 # or already marked ✓.
 if [ -x "$BIN" ]; then
-	# CWD = the shared config home (config.json lives there now, not the pak); LODOR_PAK_DIR keeps
-	# engine STATE in the pak. Mirrors romm-run / romm-sync-lib.sh's split.
-	CFGD="${SHARED_USERDATA_PATH:-$SDCARD/.userdata/shared}/Lodor"
-	[ -d "$CFGD" ] || CFGD="$PAK"
+	# CWD = the pak dir (config.json lives there now, fixes #30); LODOR_PAK_DIR keeps engine STATE
+	# in the same dir. Mirrors romm-run / romm-sync-lib.sh's CWD contract.
+	CFGD="$PAK"
 	( cd "$CFGD" 2>/dev/null && \
 	  BASE_PATH="$SDCARD" SDCARD_PATH="$SDCARD" PLATFORM="$PLAT" LODOR_PAK_DIR="$PAK" \
 	  "$BIN" --reconcile "$HOOK_ROM_PATH" ) >/dev/null 2>&1

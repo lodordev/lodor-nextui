@@ -40,9 +40,9 @@ else
 	log "set_clock done in ${_w}s -> clock=$(date +'%F %T')"
 fi
 
-# CWD = LODOR_CFG_DIR (NextUI shared userdata) so config.json / settings.conf / active-profile.txt
-# load from there; LODOR_PAK_DIR (exported by the lib) keeps engine STATE in the pak. Migrate any
-# legacy in-pak config first (idempotent, non-destructive).
+# CWD = LODOR_CFG_DIR (the pak dir now, fixes #30) so config.json / settings.conf /
+# active-profile.txt load CWD-relative; LODOR_PAK_DIR (exported by the lib, same dir) keeps engine
+# STATE. Migrate any config left in the OLD shared home first (idempotent, non-destructive).
 lodor_migrate_cfg
 # tier-1 Tailscale: bring the userspace tunnel up (reuse QR login) when config.json is a
 # tier-1 host. No-op for LAN / public-URL configs. Non-fatal (engine surfaces its own rc).
