@@ -164,13 +164,17 @@ fi
 #     landed this launch — one disc per launch; the daemon prefetch completes the set). NextUI
 #     owns the radio: offline the engine fails fast and we launch on disc 1 as-is.
 # --------------------------------------------------------------------------------------------------
-# Resolve the playlist: the .m3u itself, or the sibling "<Game>.m3u" beside a disc file's folder.
+# Resolve the playlist: the .m3u itself, or the sibling "<Game>.m3u" beside a disc file's
+# folder. The per-game disc folder is DOT-HIDDEN (".<Game>/", lodor#7 UX fix); legacy
+# non-dot folders and already-dot game names both still map: raw name first, then
+# dot-stripped.
 m3u_for() {
 	case "$1" in
 		*.m3u) printf '%s' "$1"; return 0 ;;
 	esac
 	_gd=$(dirname "$1"); _pd=$(dirname "$_gd"); _gn=$(basename "$_gd")
 	_cand="$_pd/$_gn.m3u"
+	[ -f "$_cand" ] || _cand="$_pd/${_gn#.}.m3u"
 	[ -f "$_cand" ] && printf '%s' "$_cand"
 }
 # 0 (true) if the engine's OFFLINE completeness gate says this ROM's disc set is incomplete
