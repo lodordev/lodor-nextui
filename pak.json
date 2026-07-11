@@ -1,6 +1,6 @@
 {
   "name": "Lodor",
-  "version": "0.9.7.11",
+  "version": "0.9.8",
   "type": "TOOL",
   "description": "RomM thin-client — whole-library stubs, download-on-launch, two-way save sync",
   "author": "lodordev",
@@ -28,6 +28,7 @@
     "0.9.7.8": "Fix release: update and Reset-WiFi screens no longer black out on Miyoo Mini devices, and downloaded updates now always install at reboot (older cards had a missing boot hook — now self-repairing).",
     "0.9.7.9": "Multi-disc games now start after downloading just one disc — the rest arrive in the background while charging. Self-signed HTTPS servers can onboard with an honest certificate prompt.",
     "0.9.7.10": "Stability release: multi-disc playlist fixes (CRLF/comments), resumable disc downloads, sync-collision honesty, durable settings writes.",
-    "0.9.7.11": "Multi-disc hotfix: games launch after the first disc again (playlist tracks on-card discs; part-downloads migrate automatically); B actually cancels downloads; Miyoo Mini update screens fixed."
+    "0.9.7.11": "Multi-disc hotfix: games launch after the first disc again (playlist tracks on-card discs; part-downloads migrate automatically); B actually cancels downloads; Miyoo Mini update screens fixed.",
+    "0.9.8": "Sync you can see, updates you can trust: last-synced status on every screen, B stops long operations honestly, update downloads resume and can be reverted, consistent menu names."
   }
 }
