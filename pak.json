@@ -1,6 +1,6 @@
 {
   "name": "Lodor",
-  "version": "0.9.8",
+  "version": "0.9.8.1",
   "type": "TOOL",
   "description": "RomM thin-client — whole-library stubs, download-on-launch, two-way save sync",
   "author": "lodordev",
@@ -29,6 +29,7 @@
     "0.9.7.9": "Multi-disc games now start after downloading just one disc — the rest arrive in the background while charging. Self-signed HTTPS servers can onboard with an honest certificate prompt.",
     "0.9.7.10": "Stability release: multi-disc playlist fixes (CRLF/comments), resumable disc downloads, sync-collision honesty, durable settings writes.",
     "0.9.7.11": "Multi-disc hotfix: games launch after the first disc again (playlist tracks on-card discs; part-downloads migrate automatically); B actually cancels downloads; Miyoo Mini update screens fixed.",
-    "0.9.8": "Sync you can see, updates you can trust: last-synced status on every screen, B stops long operations honestly, update downloads resume and can be reverted, consistent menu names."
+    "0.9.8": "Sync you can see, updates you can trust: last-synced status on every screen, B stops long operations honestly, update downloads resume and can be reverted, consistent menu names.",
+    "0.9.8.1": "Multi-disc games now show one launchable entry instead of two (the disc folder is hidden); part-downloaded games migrate automatically."
   }
 }
