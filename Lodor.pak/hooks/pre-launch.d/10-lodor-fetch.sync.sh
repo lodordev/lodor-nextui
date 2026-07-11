@@ -131,7 +131,8 @@ if [ ! -s "$HOOK_ROM_PATH" ]; then
 		# opens the (intact, 0-byte) stub and fails fast with its own load error — the engine
 		# restores the stub on every failure path, never leaving a corrupt partial file. We never
 		# mask the failure; the cause shown maps the engine/romm-run exit honestly (task #120/#124).
-		# #2: romm-run's RESERVED wrapper codes are distinct now — 101 pak-broken, 102 Wi-Fi down
+		# #2: romm-run's RESERVED wrapper codes are distinct now — 101 pak-broken, 102 Wi-Fi
+		# down, 103 busy (another sync holds the mutex — honest wait, never a Wi-Fi claim)
 		# (2 kept for a stale pre-#2 wrapper); rc=4 is the engine's ran-but-errored (a server/
 		# transfer problem, NOT Wi-Fi); an UNKNOWN rc never claims "check Wi-Fi". #3: every failure
 		# splash says the emulator screen that follows WILL fail, so the stub's load error reads
@@ -141,6 +142,7 @@ if [ ! -s "$HOOK_ROM_PATH" ]; then
 			   : > "$PAKDIR/.pairing-expired" 2>/dev/null
 			   ui_error "Pairing expired — open Tools > Lodor to re-pair. The game screen that follows will fail to open — that's expected. Re-pair and launch again." ;;
 			2|102) ui_error "Wi-Fi not connected — enable it in NextUI Settings. The game screen that follows will fail to open — that's expected. Fix the connection and launch again." ;;
+			103) ui_error "Another sync is running — try again shortly. The game screen that follows will fail to open — that's expected. Wait a moment and launch again." ;;
 			3) ui_error "Couldn't reach your server — check the server or your connection. The game screen that follows will fail to open — that's expected. Fix the connection and launch again." ;;
 			4) ui_error "The server had a problem sending this game — try again. The game screen that follows will fail to open — that's expected. Fix the connection and launch again." ;;
 			101) ui_error "Lodor is broken on this card — reinstall it from the Pak Store. The game screen that follows will fail to open — that's expected. Reinstall Lodor and launch again." ;;
@@ -174,9 +176,11 @@ m3u_for() {
 # 0 (true) if the .m3u lists a disc whose file is missing or 0-byte (busybox-safe scan).
 m3u_incomplete() {
 	_m="$1"; [ -f "$_m" ] || return 1
-	_dir=$(dirname "$_m"); _any=0
+	_dir=$(dirname "$_m"); _any=0; _CR=$(printf '\r')
 	while IFS= read -r _line || [ -n "$_line" ]; do
+		_line=${_line%"$_CR"}
 		[ -n "$_line" ] || continue
+		case "$_line" in \#*) continue ;; esac
 		_any=1
 		case "$_line" in
 			/*) _dp="$_line" ;;

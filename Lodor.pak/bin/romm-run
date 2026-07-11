@@ -12,6 +12,7 @@ export LODOR_HOST_OS=nextui
 # unreachable" AND "wrapper: binary missing", and Wi-Fi-down used the engine-ish 2):
 #   101 = this pak is broken (lodor-sync or lib/romm-sync-lib.sh missing) — reinstall, not Wi-Fi
 #   102 = Wi-Fi not connected (NextUI owns the radio; we only ride it)
+#   103 = BUSY — another sync holds the coordination mutex (not a Wi-Fi problem; clears itself)
 # Every other exit code is the ENGINE'S OWN, passed through untouched.
 SDCARD="${SDCARD_PATH:-/mnt/SDCARD}"
 PLAT="${PLATFORM:-tg5040}"
@@ -30,7 +31,12 @@ rm -f /tmp/dl-progress 2>/dev/null
 
 # RIDE the existing NextUI Wi-Fi connection. wifi_acquire only checks link+IP and takes the
 # coordination mutex; it NEVER powers the radio. Honest exit if Wi-Fi is off.
-if ! wifi_acquire fg; then
+wifi_acquire fg; _acq=$?
+if [ "$_acq" = 2 ]; then
+	log "wifi_acquire BUSY (another sync holds the mutex) -> exit 103"
+	echo "Another sync is running — try again shortly" > /tmp/romm-phase 2>/dev/null
+	exit 103
+elif [ "$_acq" != 0 ]; then
 	log "wifi_acquire FAILED (wlan0 not connected) -> exit 102"
 	exit 102
 fi

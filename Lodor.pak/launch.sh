@@ -587,11 +587,13 @@ active_profile_label() {
 # then TRUSTS the engine's own exit code (the pure-Go engine's happy-eyeballs connect is authoritative;
 # we deliberately do NOT pre-probe RomM with busybox nc — a known false-negative on this device).
 # romm-run's RESERVED wrapper codes (#2) are mapped first: 101 = the pak itself is broken (missing
-# binary/lib — never a network problem), 102 = Wi-Fi down (2 kept for a stale pre-#2 wrapper). An
+# binary/lib — never a network problem), 102 = Wi-Fi down (2 kept for a stale pre-#2 wrapper),
+# 103 = busy (another sync holds the mutex — never a Wi-Fi claim, it clears on its own). An
 # UNKNOWN rc never claims "check Wi-Fi" — it says so and points at the log.
 diagnose() {
 	if   [ ! -x "$SYNC_BIN" ];                 then echo "Lodor engine missing - reinstall from the Pak Store"
 	elif [ "${1:-1}" = 101 ];                  then echo "Lodor is broken on this card - reinstall it from the Pak Store"
+	elif [ "${1:-1}" = 103 ];                  then echo "Another sync is running - try again shortly"
 	elif ! creds_present;                      then echo "Not connected - run Lodor setup, then retry"
 	elif [ "${1:-1}" = 6 ];                    then echo "Pairing expired - run Setup / Re-pair"
 	elif [ "${1:-1}" = 102 ] || [ "${1:-1}" = 2 ]; then echo "Wi-Fi not connected - enable it in NextUI Settings, then retry"
@@ -1851,7 +1853,7 @@ if [ "$needs_wiring" = 1 ]; then
 	log "hooks self-installed + verified (first_install=$hooks_first)"
 
 	[ "$hooks_first" = 1 ] && ui_msg "Starting background sync..."
-	if pgrep -f "romm-syncd" >/dev/null 2>&1; then
+	if pgrep -f "$PAKDIR/bin/romm-syncd" >/dev/null 2>&1; then
 		log "daemon already running"
 	elif [ -x "$PAKDIR/bin/romm-syncd" ]; then
 		if command -v setsid >/dev/null 2>&1; then
@@ -1859,8 +1861,8 @@ if [ "$needs_wiring" = 1 ]; then
 		else
 			"$PAKDIR/bin/romm-syncd" </dev/null >/dev/null 2>&1 &
 		fi
-		_k=0; while ! pgrep -f "romm-syncd" >/dev/null 2>&1 && [ "$_k" -lt 20 ]; do sleep 0.1; _k=$((_k + 1)); done
-		if pgrep -f "romm-syncd" >/dev/null 2>&1; then
+		_k=0; while ! pgrep -f "$PAKDIR/bin/romm-syncd" >/dev/null 2>&1 && [ "$_k" -lt 20 ]; do sleep 0.1; _k=$((_k + 1)); done
+		if pgrep -f "$PAKDIR/bin/romm-syncd" >/dev/null 2>&1; then
 			log "daemon started"
 		else
 			log "WARN: could not confirm romm-syncd started; boot.d hook will start it next boot"

@@ -54,6 +54,7 @@ seed_library_once() {
 	[ "$sacq" -eq 0 ] || { [ "$sacq" -eq 2 ] && log "seed: wifi busy; retry next poll"; return 0; }
 	sc_bounded || log "seed: clock set failed"
 	run_sync --mirror-catalog     >> "$LOG" 2>&1; sm1=$?
+	wifi_lock_refresh   # long cycle: keep the held lock's ts fresh between engine calls
 	run_sync --mirror-collections >> "$LOG" 2>&1; sm2=$?
 	wifi_release
 	if [ "$sm1" -eq 0 ] && [ "$sm2" -eq 0 ]; then
@@ -101,15 +102,18 @@ while :; do
 	if [ "$acq" -eq 0 ]; then
 		sc_bounded || log "clock set failed"
 		run_sync --push-pending >> "$LOG" 2>&1; rc=$?
+		wifi_lock_refresh   # long cycle: keep the held lock's ts fresh between engine calls
 		# Handoff v1: also drain the offline pending-STATES queue (savestates). Safe here —
 		# we are inside the acq==0 (Wi-Fi already up/reachable) branch, so this rides the
 		# existing connection and NEVER brings the radio up itself. Best-effort — a stuck
 		# state must never wedge the save flush above.
 		run_sync --push-pending-states >> "$LOG" 2>&1 || true
+		wifi_lock_refresh
 		if [ "$mode" = full ]; then
 			# Charging-interval extras (task #132/#133): light cross-device Continue +
 			# Recently Played refresh. Local-index only — never the catalog mirror.
 			run_sync --sync-continue >> "$LOG" 2>&1; crc=$?
+			wifi_lock_refresh
 			log "continue refresh rc=$crc"
 			# Multi-disc prefetch (lodor#7 hybrid): after the pending queues drain,
 			# quietly complete any downloaded multi-disc game still missing discs
@@ -117,6 +121,13 @@ while :; do
 			# a relaunch). Rides the EXISTING connection like everything here — NextUI
 			# owns the radio. Knob: settings.conf prefetch_discs=off (default ON; same
 			# key=value file launch.sh's toggles use).
+			# IN-GAME GATE: none on this lane BY DESIGN (unlike the other three daemons'
+			# not_in_game re-check at this step). NextUI keeps no daemon-visible in-game
+			# marker — MinUI.pak runs pre-launch hooks -> game -> post-launch hooks
+			# synchronously and exposes no gameStart/gameStop state. Inventing a lock here
+			# would add a stale-lock failure mode (power yank mid-game) with nothing it
+			# protects: this cycle only touches queued saves from EXITED sessions and
+			# 0-byte later-disc stubs, never files the emulator holds open.
 			_prefetch="$(sed -n 's/^prefetch_discs=//p' "$LODOR_CFG_DIR/settings.conf" 2>/dev/null | head -1)"
 			if [ "${_prefetch:-on}" != "off" ]; then
 				run_sync --prefetch-discs >> "$LOG" 2>&1 || log "prefetch-discs rc=$? (retry next interval)"

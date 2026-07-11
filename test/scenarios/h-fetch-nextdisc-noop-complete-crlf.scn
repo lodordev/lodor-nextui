@@ -1,0 +1,16 @@
+# CRLF + comment variant of the complete-set control: a Windows-authored .m3u
+# (CRLF line endings, #EXTM3U header, a # comment line) with every disc present must
+# parse clean — no --fetch-next-disc, no --download, exit 0. Before the CR-strip fix
+# every entry failed the [ -s ] check (trailing \r in the path) so complete games
+# false-errored on every launch.
+desc fetch hook (lodor#7): complete CRLF+comment .m3u -> no disc fetch at all
+invoke prehook
+config paired
+romarg Roms/PlayStation (PS)/✓ FF7.m3u
+sdtext Roms/PlayStation (PS)/✓ FF7.m3u	#EXTM3U\r\n# burned on Windows\r\nFF7/D1.chd\r\nFF7/D2.chd\r\n
+sdfile+ Roms/PlayStation (PS)/FF7/D1.chd
+sdfile+ Roms/PlayStation (PS)/FF7/D2.chd
+engine 0|
+expect_exit 0
+expect_trace_absent ENGINE --fetch-next-disc
+expect_trace_absent ENGINE --download

@@ -184,7 +184,7 @@ wifi_ensure_reachable() {
 # Keeps the launch hooks, the daemon, and the Tool from running two transfers at once. fg preempts a
 # preemptible (push) holder so a game launch never waits on a background save upload; bg never preempts.
 _WIFI_LOCK="/tmp/romm-wifi.lock"
-_WIFI_STALE=180   # a held lock older than this (s) with a dead/absent owner is reclaimable
+_WIFI_STALE=180   # age tiebreak: only consulted when owner liveness is inconclusive (unparseable pid)
 
 # wifi_acquire [mode]   mode: fg = foreground (download / pre-game): preempts a preemptible holder.
 #   push = post-game save upload: preemptible by fg.  bg = daemon (default): neither preempts nor is.
@@ -203,7 +203,16 @@ wifi_acquire() {
 		fi
 		owner=$(cat "$_WIFI_LOCK/owner" 2>/dev/null)
 		ts=$(cat "$_WIFI_LOCK/ts" 2>/dev/null || echo 0); now=$(date +%s)
-		if [ -z "$owner" ] || ! kill -0 "$owner" 2>/dev/null || [ $((now - ts)) -gt "$_WIFI_STALE" ]; then
+		# Reclaim ONLY a dead/absent owner. A LIVE holder keeps the mutex no matter how old
+		# its ts is (long downloads are legitimate — revoking a live holder mid-transfer was
+		# the bug). Age is a tiebreak ONLY when kill -0 can't answer (unparseable owner pid).
+		_reclaim=0
+		case "$owner" in
+			'') _reclaim=1 ;;                                                   # absent owner
+			*[!0-9]*) [ $((now - ts)) -gt "$_WIFI_STALE" ] && _reclaim=1 ;;     # unparseable: age tiebreak
+			*) kill -0 "$owner" 2>/dev/null || _reclaim=1 ;;                    # parseable: liveness decides
+		esac
+		if [ "$_reclaim" = 1 ]; then
 			rm -f "$_WIFI_LOCK/owner" "$_WIFI_LOCK/ts" "$_WIFI_LOCK/preempt" 2>/dev/null
 			rmdir "$_WIFI_LOCK" 2>/dev/null
 			continue
@@ -239,6 +248,14 @@ wifi_release() {
 		rm -f "$_WIFI_LOCK/owner" "$_WIFI_LOCK/ts" "$_WIFI_LOCK/preempt" 2>/dev/null
 		rmdir "$_WIFI_LOCK" 2>/dev/null
 	fi
+	return 0
+}
+
+# wifi_lock_refresh — bump the held lock's ts (owner-scoped; no-op otherwise). Long-cycle
+# holders (the daemon between engine calls) call this so a reader that can't verify our
+# liveness (unparseable-owner tiebreak) never mistakes a working holder for a stale one.
+wifi_lock_refresh() {
+	[ "$(cat "$_WIFI_LOCK/owner" 2>/dev/null)" = "$$" ] && date +%s > "$_WIFI_LOCK/ts" 2>/dev/null
 	return 0
 }
 
