@@ -1,0 +1,8 @@
+desc Menu title carries the engine last-sync age (lodor#43)
+config paired
+seeded
+sdtext Tools/tg5040/Lodor.pak/last-sync.txt	last_sync_ok=1 saves=2 states=0\n
+pick 3|
+expect_exit 0
+expect_trace free - synced
+expect_trace d ago]

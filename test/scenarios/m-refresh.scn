@@ -1,13 +1,16 @@
 # Task #133: the full mirror lives behind its own honestly-labelled row.
-desc Refresh library (full, slow): catalog + collections mirror, saves untouched
+# lodor#60: wizard-canon labels — "Refresh library (full)" is the cover-refetching pass
+# and must shell --mirror-catalog --full (the update row owns the plain pass).
+desc Refresh library (full): catalog --full + collections mirror, saves untouched
 config paired
 seeded
-pick 0|Refresh library (full, slow)
+pick 0|Refresh library (full)
 pick 2|
 engine 0|RESULT ok
 expect_exit 0
-expect_trace ENGINE --mirror-catalog -> rc=0
+expect_trace ENGINE --mirror-catalog --full -> rc=0
 expect_trace ENGINE --mirror-collections -> rc=0
+expect_trace_absent ENGINE --mirror-catalog -> rc=0
 expect_trace_absent ENGINE --push-pending
 expect_trace_absent ENGINE --pull-saves
 expect_trace PRES timeout=3 msg='Library refreshed'

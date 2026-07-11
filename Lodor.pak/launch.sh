@@ -563,6 +563,25 @@ sd_free() {
 		else                   printf "%dK", a }'
 }
 
+# last_sync_age — relative age of the engine's last-sync stamp (lodor#43:
+# $PAKDIR/last-sync.txt, "last_sync_ok=<epoch> saves=<n> states=<m>", written by the
+# engine ONLY on a verified sync). Same buckets as the Go wizard's humanAge; empty
+# when never synced / unparseable / clock-skewed (never guess — no row beats a fake
+# age). Local file read only, no network.
+last_sync_age() {
+	_lsa_e="$(sed -n 's/^last_sync_ok=\([0-9][0-9]*\).*/\1/p' "$PAKDIR/last-sync.txt" 2>/dev/null | head -1)"
+	[ -n "$_lsa_e" ] || return 0
+	_lsa_now="$(date +%s 2>/dev/null)"
+	case "$_lsa_now" in ''|*[!0-9]*) return 0 ;; esac
+	_lsa_d=$((_lsa_now - _lsa_e))
+	[ "$_lsa_d" -lt 0 ] && _lsa_d=0 # RTC-less clock skew reads as "just now", never negative
+	if   [ "$_lsa_d" -lt 90 ];    then echo "just now"
+	elif [ "$_lsa_d" -lt 3600 ];  then echo "$((_lsa_d / 60))m ago"
+	elif [ "$_lsa_d" -lt 86400 ]; then echo "$((_lsa_d / 3600))h ago"
+	else                               echo "$((_lsa_d / 86400))d ago"
+	fi
+}
+
 # count_lines <file> — non-blank line count; 0 for a missing/unreadable file. Local-only (no
 # network): drives the "(N)" labels on the pending-saves / download-queue menu rows.
 count_lines() {
@@ -1062,7 +1081,14 @@ do_refresh_library() {
 	# LIVE progress (#1): the full mirror can take minutes on a big library — background the
 	# engine and stream its real phase/percent side-channels (the fetch hook's exact bridge)
 	# instead of a static message. The final honest report is unchanged.
-	eng_progress "Refreshing your library..." --mirror-catalog; _r1=$?
+	# lodor#60: two depths behind the wizard-canon labels — (update) is the incremental
+	# catalog pass; (full) re-fetches every cover (--full, the slow one). Same engine modes
+	# the muOS/Knulli wizard's split rows run; labels only, no new engine behavior.
+	if [ "${1:-}" = full ]; then
+		eng_progress "Refreshing your library..." --mirror-catalog --full; _r1=$?
+	else
+		eng_progress "Refreshing your library..." --mirror-catalog; _r1=$?
+	fi
 	eng_progress "Refreshing collections..." --mirror-collections; _r2=$?
 	_rc=0; for _r in $_r1 $_r2; do [ "$_r" -gt "$_rc" ] && _rc=$_r; done
 	if [ "$_rc" = 0 ]; then ui_msg_timed "$(refresh_report 'Library refreshed')" 3; else ui_error_ack "$(diagnose "$_rc")"; fi
@@ -1681,6 +1707,9 @@ run_menu() {
 		_nq="$(count_lines "$PAKDIR/download-queue.txt")"
 		_ulbl="$(active_profile_label)"
 		_free="$(sd_free)"
+		# lodor#43: last verified sync, engine-stamped — a LOCAL file read, drawn in
+		# the title beside free space; absent until the first verified sync.
+		_lsync="$(last_sync_age)"
 		# update badge: a LOCAL settings.conf read + one local --version exec, no network. The
 		# row self-retires once the Pak Store installed the version it names.
 		_uav="$(sed -n 's/^update_available=//p' "$SETTINGS" 2>/dev/null | head -1)"
@@ -1693,7 +1722,9 @@ run_menu() {
 			printf 'Sync now\n'
 			# saves parked offline are never invisible (parity item #2); row only when real
 			[ "$_np" -gt 0 ] 2>/dev/null && printf 'Pending saves (%s) - upload now\n' "$_np"
-			printf 'Refresh library (full, slow)\n'
+			# lodor#60: wizard-canon refresh rows — incremental (update) vs cover-refetching (full)
+			printf 'Refresh library (update)\n'
+			printf 'Refresh library (full)\n'
 			printf 'Game Manager\n'
 			printf 'Search library\n'
 			# live queue count (parity item #3); an empty queue draws no dead row
@@ -1718,7 +1749,7 @@ run_menu() {
 
 		killall minui-presenter >/dev/null 2>&1 || true
 		"$LISTBIN" --disable-auto-sleep --file "$MENU_LST" --format text \
-			--title "Lodor${_free:+ - $_free free}" --confirm-text "OPEN" --cancel-text "EXIT" \
+			--title "Lodor${_free:+ - $_free free}${_lsync:+ - synced $_lsync}" --confirm-text "OPEN" --cancel-text "EXIT" \
 			--write-location "$MENU_OUT"
 		lrc=$?
 		case "$lrc" in
@@ -1732,7 +1763,8 @@ run_menu() {
 			"! Pairing expired"*)   do_reonboard ;;
 			"Sync now")             do_sync_now ;;
 			"Pending saves ("*)     do_push_pending ;;
-			"Refresh library"*)     do_refresh_library ;;
+			"Refresh library (full)") do_refresh_library full ;;
+			"Refresh library"*)     do_refresh_library update ;;
 			"Game Manager")         do_game_manager ;;
 			"Search library")       do_search_library ;;
 			"Download queue"*)      do_download_queue ;;

@@ -1,0 +1,6 @@
+desc Menu title shows no sync age before a first verified sync (lodor#43)
+config paired
+seeded
+pick 3|
+expect_exit 0
+expect_trace_absent synced

@@ -1,6 +1,6 @@
 # Task #133: "Sync now" is the FAST sync — saves + light Continue only. The catalog /
 # collections mirror (library-scale minutes on hardware) moved behind the honest
-# "Refresh library (full, slow)" row; running it here is the regression this guards.
+# "Refresh library (update)" / "(full)" rows; running it here is the regression this guards.
 desc Sync now is FAST: push-pending + pull-saves + sync-continue, NEVER the catalog mirror
 config paired
 seeded

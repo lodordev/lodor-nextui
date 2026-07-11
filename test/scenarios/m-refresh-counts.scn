@@ -1,12 +1,16 @@
 # UX: refresh surfaces real numbers — on-card totals (ground truth) + the engine's MIRROR
 # created= count as "new". 2 on-card games in 1 system, engine reports 2 created.
+# lodor#60: rides the "Refresh library (update)" row (wizard-canon label) — the
+# incremental pass, plain --mirror-catalog, never --full.
 desc Refresh library reports games/systems totals and the MIRROR created count
 config paired
 seeded
 sdfile Roms/Game Boy Advance (GBA)/✘ Zelda.gba
 sdfile+ Roms/Game Boy Advance (GBA)/✓ Metroid.gba
-pick 0|Refresh library (full, slow)
+pick 0|Refresh library (update)
 pick 2|
 engine 0|MIRROR created=2 existing=0 skipped=0 multifile=0 covers=0
 expect_exit 0
+expect_trace ENGINE --mirror-catalog -> rc=0
+expect_trace_absent ENGINE --mirror-catalog --full
 expect_trace PRES timeout=3 msg='Library refreshed - 2 games across 1 system (2 new)'
