@@ -1,15 +1,20 @@
-# lodor#7 disc-1-first: a POPULATED .m3u whose disc 2 is a 0-byte stub is the designed
-# partial state (the stub gate can't see it — the m3u isn't a stub). The hook must fire
-# --fetch-next-disc, the disc lands, and the launch proceeds (exit 0).
-desc fetch hook (lodor#7): populated .m3u + stub disc 2 -> --fetch-next-disc lands it
+# lodor#7 disc-1-first, LOCAL-ONLY .m3u: the playlist lists only present discs, so the
+# hook detects the incomplete set via `lodor-sync --check-rom` (manifest census), NOT
+# by scanning the playlist. complete=0 -> --fetch-next-disc fires, the disc lands, the
+# post-fetch --check-rom reads complete, and the launch proceeds (exit 0). The card
+# here carries the legacy full-list shape (stub disc 2 listed) — detection must not care.
+desc fetch hook (lodor#7): --check-rom says incomplete -> --fetch-next-disc lands disc 2
 invoke prehook
 config paired
 romarg Roms/PlayStation (PS)/✓ FF7.m3u
 sdtext Roms/PlayStation (PS)/✓ FF7.m3u	FF7/D1.chd\nFF7/D2.chd\n
 sdfile+ Roms/PlayStation (PS)/FF7/D1.chd
 sdfile Roms/PlayStation (PS)/FF7/D2.chd
+engine 0|RESULT complete=0 discs_total=2 discs_present=1
 engine 0|RESULT fetched=1 complete=1 discs_total=2 discs_present=2
+engine 0|RESULT complete=1 discs_total=2 discs_present=2
 engine 0|
 expect_exit 0
+expect_trace ENGINE --check-rom
 expect_trace ENGINE --fetch-next-disc
 expect_file_has Roms/PlayStation (PS)/FF7/D2.chd	DISCBYTES

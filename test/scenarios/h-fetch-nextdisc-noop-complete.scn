@@ -1,13 +1,16 @@
-# Control: a COMPLETE multi-disc set must add zero engine work to the launch path —
-# no --fetch-next-disc, no --download (only the ordinary saves probe runs).
-desc fetch hook (lodor#7): complete .m3u -> no disc fetch at all
+# Control: a COMPLETE multi-disc set must add no fetch work to the launch path — the
+# one --check-rom (offline, manifest census) answers complete=1, so no
+# --fetch-next-disc, no --download (only the ordinary saves probe runs).
+desc fetch hook (lodor#7): --check-rom complete -> no disc fetch at all
 invoke prehook
 config paired
 romarg Roms/PlayStation (PS)/✓ FF7.m3u
 sdtext Roms/PlayStation (PS)/✓ FF7.m3u	FF7/D1.chd\nFF7/D2.chd\n
 sdfile+ Roms/PlayStation (PS)/FF7/D1.chd
 sdfile+ Roms/PlayStation (PS)/FF7/D2.chd
+engine 0|RESULT complete=1 discs_total=2 discs_present=2
 engine 0|
 expect_exit 0
+expect_trace ENGINE --check-rom
 expect_trace_absent ENGINE --fetch-next-disc
 expect_trace_absent ENGINE --download

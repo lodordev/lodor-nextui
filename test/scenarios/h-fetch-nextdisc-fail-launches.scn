@@ -8,7 +8,9 @@ romarg Roms/PlayStation (PS)/✓ FF7.m3u
 sdtext Roms/PlayStation (PS)/✓ FF7.m3u	FF7/D1.chd\nFF7/D2.chd\n
 sdfile+ Roms/PlayStation (PS)/FF7/D1.chd
 sdfile Roms/PlayStation (PS)/FF7/D2.chd
+engine 0|RESULT complete=0 discs_total=2 discs_present=1
 engine 3|
+engine 0|RESULT complete=0 discs_total=2 discs_present=1
 engine 0|
 expect_exit 0
 expect_trace ENGINE --fetch-next-disc

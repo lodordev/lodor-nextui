@@ -173,26 +173,23 @@ m3u_for() {
 	_cand="$_pd/$_gn.m3u"
 	[ -f "$_cand" ] && printf '%s' "$_cand"
 }
-# 0 (true) if the .m3u lists a disc whose file is missing or 0-byte (busybox-safe scan).
-m3u_incomplete() {
-	_m="$1"; [ -f "$_m" ] || return 1
-	_dir=$(dirname "$_m"); _any=0; _CR=$(printf '\r')
-	while IFS= read -r _line || [ -n "$_line" ]; do
-		_line=${_line%"$_CR"}
-		[ -n "$_line" ] || continue
-		case "$_line" in \#*) continue ;; esac
-		_any=1
-		case "$_line" in
-			/*) _dp="$_line" ;;
-			*)  _dp="$_dir/$_line" ;;
-		esac
-		[ -s "$_dp" ] || return 0
-	done < "$_m"
-	[ "$_any" = 0 ] && return 0
+# 0 (true) if the engine's OFFLINE completeness gate says this ROM's disc set is incomplete
+# (RESULT complete=0). The .m3u is LOCAL-ONLY now — it lists only discs with real bytes, so
+# scanning its refs would always read "complete"; the full canonical set lives in the mirror
+# manifest and `lodor-sync --check-rom` (filesystem + manifest, pre-config, never the radio)
+# is the honest answer. Called DIRECTLY (not via romm-run — no Wi-Fi lock for an offline
+# stat). FAIL-OPEN: no binary / unparseable output -> 1 ("complete") -> no fetch, the launch
+# proceeds exactly as before.
+rom_incomplete() {
+	[ -x "$PAKDIR/lodor-sync" ] || return 1
+	_ckout=$( cd "$PAKDIR" 2>/dev/null && \
+		SDCARD_PATH="$SDCARD" PLATFORM="${PLATFORM:-tg5040}" BASE_PATH="$SDCARD" \
+		./lodor-sync --check-rom "$1" 2>/dev/null )
+	case "$_ckout" in *"complete=0"*) return 0 ;; esac
 	return 1
 }
 M3U="$(m3u_for "$HOOK_ROM_PATH")"
-if [ -n "$M3U" ] && [ -s "$M3U" ] && [ "$STUB_FILLED" != 1 ] && m3u_incomplete "$M3U"; then
+if [ -n "$M3U" ] && [ -s "$M3U" ] && [ "$STUB_FILLED" != 1 ] && rom_incomplete "$M3U"; then
 	hlog "=== next-disc fetch: $M3U (populated m3u, incomplete disc set) ==="
 	rm -f /tmp/dl-progress /tmp/romm-phase 2>/dev/null
 	ui_begin "Downloading $GAME…"
@@ -214,7 +211,7 @@ if [ -n "$M3U" ] && [ -s "$M3U" ] && [ "$STUB_FILLED" != 1 ] && m3u_incomplete "
 	done
 	wait "$ndpid"; ndrc=$?
 
-	if m3u_incomplete "$M3U"; then
+	if rom_incomplete "$M3U"; then
 		[ "$ndrc" = 6 ] && : > "$PAKDIR/.pairing-expired" 2>/dev/null
 		# slog (not hlog): the per-launch disc decision belongs in last-sync.log too,
 		# same as the A3 saves line — one log read answers the next field diagnosis.
