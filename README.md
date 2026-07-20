@@ -6,10 +6,11 @@ logic; NextUI only renders and shells out. Everything here is host delivery (pak
 
 ## Supported devices
 
-NextUI's own live build targets only: **tg5040 (TrimUI Brick) and tg5050 (TrimUI Smart Pro S)** — both
-arm64, so a single `GOARCH=arm64` engine binary serves both. `my355` was a NextUI target historically
-but is `_unmaintained` upstream as of the current tip and is intentionally not built here. Any other
-device → use LodorOS (the MinUI fork), not this.
+NextUI's own live build targets only: **tg5040 (TrimUI Brick / TrimUI Smart Pro) and tg5050 (TrimUI
+Smart Pro S)** — both arm64, so a single `GOARCH=arm64` engine binary serves both. `my355` was a
+NextUI target historically but has been removed upstream (it went `_unmaintained`, then dropped from
+the tree) and is intentionally not built here. Any other device → use LodorOS (the MinUI fork), not
+this.
 
 ## Packaging
 
