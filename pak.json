@@ -1,8 +1,8 @@
 {
   "name": "Lodor",
-  "version": "0.9.8.1",
+  "version": "1.0.0-alpha1",
   "type": "TOOL",
-  "description": "RomM thin-client — whole-library stubs, download-on-launch, two-way save sync",
+  "description": "Your whole RomM library on-device: games download when you launch them, saves and save states sync between all your devices",
   "author": "lodordev",
   "repo_url": "https://github.com/lodordev/lodor-nextui",
   "release_filename": "Lodor.pak.zip",
@@ -14,6 +14,13 @@
     "config.json",
     "settings.conf",
     "active-profile.txt"
+  ],
+  "screenshots": [
+    ".github/resources/screenshots/main-menu.png",
+    ".github/resources/screenshots/game-manager.png",
+    ".github/resources/screenshots/download.png",
+    ".github/resources/screenshots/wizard.png",
+    ".github/resources/screenshots/recent.png"
   ],
   "changelog": {
     "0.9.1-beta": "First public beta.",
@@ -30,6 +37,7 @@
     "0.9.7.10": "Stability release: multi-disc playlist fixes (CRLF/comments), resumable disc downloads, sync-collision honesty, durable settings writes.",
     "0.9.7.11": "Multi-disc hotfix: games launch after the first disc again (playlist tracks on-card discs; part-downloads migrate automatically); B actually cancels downloads; Miyoo Mini update screens fixed.",
     "0.9.8": "Sync you can see, updates you can trust: last-synced status on every screen, B stops long operations honestly, update downloads resume and can be reverted, consistent menu names.",
-    "0.9.8.1": "Multi-disc games now show one launchable entry instead of two (the disc folder is hidden); part-downloaded games migrate automatically."
+    "0.9.8.1": "Multi-disc games now show one launchable entry instead of two (the disc folder is hidden); part-downloaded games migrate automatically.",
+    "1.0.0-alpha1": "First public alpha of the 1.0 line. Launch card on every device, GBA moves to mGBA fleet-wide, save + save-state sync hardened (downloaded saves are now verified against the server content hash before they touch the card), and the UX sweep lands: your NextUI font and wallpaper are inherited on every screen, cover art behind Game Manager and Search. Early on purpose - expect rough edges and report them."
   }
 }
