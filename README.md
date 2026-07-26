@@ -4,6 +4,21 @@ Lodor's RomM sync layer as a **NextUI Tool pak + launch hooks** — no NextUI fo
 into, never patched: the engine (`lodor-sync`, the same arm64 binary LodorOS ships) owns all RomM
 logic; NextUI only renders and shells out. Everything here is host delivery (pak shell + hooks).
 
+## Current release
+
+**1.0.0-alpha1** — the first public alpha of the 1.0 line. Early on purpose: expect rough edges and report them.
+
+Install from the **Pak Store**, or download the pak directly from the release page. The store catalog picks up
+a new version within about an hour of publication.
+
+- [Release notes and downloads](https://github.com/lodordev/lodor-nextui/releases/tag/1.0.0-alpha1)
+
+**What is new in this alpha:** your NextUI font and wallpaper are inherited on every Lodor screen, cover art
+renders behind Game Manager and Search, GBA runs on mGBA so save states stay portable, and a downloaded save is
+verified against the server's content hash before it touches the card.
+
+These 1.0 releases are marked **pre-release** on GitHub, so this repo's *Latest release* badge still points at the last stable (`0.9.8.1`). That is deliberate.
+
 ## Supported devices
 
 NextUI's own live build targets only: **tg5040 (TrimUI Brick) and tg5050 (TrimUI Smart Pro S)** — both
