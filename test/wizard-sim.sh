@@ -253,7 +253,7 @@ while IFS= read -r raw || [ -n "$raw" ]; do
     {
       "root_uri": "https://old.example.com",
       "device_name": "old-device",
-      "token": "OLD-SHARED-TOKEN",
+      "token": "<OLD_SHARED_TOKEN>",
       "stub": true
     }
   ]

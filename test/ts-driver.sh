@@ -36,7 +36,7 @@ LODOR_CFG_DIR="${LODOR_CFG_DIR:-$SDCARD/.userdata/shared/Lodor}"
 _ts_sock_present() { [ -e "$TS_SOCK" ]; }
 
 # The lib's pidof fallback is HOST-GLOBAL — on a dev box it finds the box's own real
-# tailscaled (it did, on panther) and the driver ends up waiting on a daemon it never
+# tailscaled (it did, on the build host) and the driver ends up waiting on a daemon it never
 # started. TS_DAEMON_PID carries the reuse logic actually under test; neutralize only
 # the global lookup. (Also invoked indirectly, via command -v inside the lib.)
 # shellcheck disable=SC2329

@@ -5,7 +5,7 @@ desc cfgmove #30: uninstall clears the RomM token from the pak dir AND any old s
 config paired
 seeded
 settings mirror_mode=merge
-sdtext .userdata/shared/Lodor/config.json	{"hosts":[{"token":"STALE-SHARED-TOKEN"}]}
+sdtext .userdata/shared/Lodor/config.json	{"hosts":[{"token":"<STALE_SHARED_TOKEN>"}]}
 sdfile Tools/tg5040/Lodor.pak/.pairing-expired
 pick 0|Remove Lodor from this card
 pick 0|Keep my downloaded games

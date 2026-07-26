@@ -40,7 +40,7 @@ BASH_FILES=(
 FILES=("${POSIX_FILES[@]}" "${BASH_FILES[@]}")
 
 echo "== static: bash -n + POSIX-sh parse =="
-# POSIX parser: dash where present (dev container / debian), else busybox ash (Unraid/panther) —
+# POSIX parser: dash where present (dev container / debian), else busybox ash (Unraid build host) —
 # the on-device shell is busybox ash, so a POSIX-family parse matters more than which one.
 POSIX_SH=()
 if command -v dash >/dev/null 2>&1; then POSIX_SH=(dash)
