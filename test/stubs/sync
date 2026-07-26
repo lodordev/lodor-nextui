@@ -1,0 +1,4 @@
+#!/bin/sh
+# sim stub: neutralize host-global fsync (like sleep/killall) so migrate cannot stall on
+# a busy host pool. The real sync flushes ALL mounts; a test never needs that.
+exit 0

@@ -1,0 +1,16 @@
+# FAIL-SAFE leg 2: the wizard ERRORING (non-zero exit — the real binary always exits 0,
+# so this models a crash/timeout/kill) must still launch the game: hook exits 0, rc only
+# logged. The load-bearing TrimUI unknown (does the wizard render at all?) can never cost
+# a launch.
+desc fetch hook: wizard exits non-zero -> hook still exits 0 (launch proceeds)
+invoke prehook
+config paired
+romarg Roms/Game Boy Advance (GBA)/✓ Zelda.gba
+sdfile+ Roms/Game Boy Advance (GBA)/✓ Zelda.gba
+engine 0|202\t2026-07-02 08:00\tFlip\t33KB\nLOCAL=older
+wizard 1|
+expect_exit 0
+expect_trace WIZARD --launch-card
+expect_trace ✓ Zelda.gba => rc=1
+expect_trace_absent LIST[
+expect_log action=card

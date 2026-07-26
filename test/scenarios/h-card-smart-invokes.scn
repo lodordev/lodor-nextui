@@ -1,0 +1,20 @@
+# LAUNCH CARD v2 (task launch-card-v2), ALWAYS-SHOW contract (2026-07-11): a reachable
+# launch hands off to `lodor-wizard --launch-card --summoned <rom>` on EVERY launch — the
+# old SMART (news-only) mode is gone from this lane (NextUI busybox has no `timeout`, so
+# hold-to-summon could never fire; a card the user cannot summon must always appear). The
+# old minui-list restore picker stays GONE. Asserts the exact rom path in the wizard argv
+# (the `=>` arrow pins the WIZARD trace line) and that no picker ran.
+desc fetch hook: reachable launch + LOCAL=older -> full card (--summoned) always, no picker
+invoke prehook
+config paired
+romarg Roms/Game Boy Advance (GBA)/✓ Zelda.gba
+sdfile+ Roms/Game Boy Advance (GBA)/✓ Zelda.gba
+engine 0|202\t2026-07-02 08:00\tFlip\t33KB\n101\t2026-07-01 10:00\tBrick\t32KB\tCURRENT\nLOCAL=older
+wizard 0|LAUNCHCARD mode=summoned shown=1 action=play evicted=0
+expect_exit 0
+expect_trace ENGINE --list-saves
+expect_trace WIZARD --launch-card --summoned
+expect_trace ✓ Zelda.gba => rc=0
+expect_trace_absent LIST[
+expect_log action=card
+expect_log local=older

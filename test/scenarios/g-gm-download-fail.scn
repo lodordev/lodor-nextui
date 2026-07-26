@@ -4,10 +4,10 @@ seeded
 sdfile Roms/Game Boy Advance (GBA)/✘ Zelda.gba
 pick 0|Game Manager
 pick 0|Game Boy Advance (GBA)
-pick 0|✘ Zelda.gba
+pick 0|Zelda.gba
 pick 0|Download now
 pick 2|
 engine 3|DLFAIL download rom=1
 expect_exit 0
 expect_trace_absent ENGINE --reconcile
-expect_log err: Couldn't reach your server - check the server or your connection, then retry
+expect_log err: Couldn't reach your server — check the server or your connection, then retry

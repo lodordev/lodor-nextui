@@ -2,13 +2,16 @@
 # minui-presenter stub — records the message and returns instantly (a real --timeout N call
 # blocks N seconds on-device; blocking here would only slow the sim down).
 set -u
-msg=""; to=""
+msg=""; to=""; thm=""
 while [ $# -gt 0 ]; do
 	case "$1" in
 		--message) msg="${2:-}"; shift 2 ;;
 		--timeout) to="${2:-}"; shift 2 ;;
+		# theme inheritance (WS-A): record the flags so scenarios can assert presence/absence
+		--font-default)     thm="$thm --font-default=${2:-}"; shift 2 ;;
+		--background-image) thm="$thm --background-image=${2:-}"; shift 2 ;;
 		*) shift ;;
 	esac
 done
-echo "PRES timeout=$to msg='$msg'" >> "${LODOR_SIM_DIR:?}/trace.log"
+echo "PRES timeout=$to msg='$msg'$thm" >> "${LODOR_SIM_DIR:?}/trace.log"
 exit 0

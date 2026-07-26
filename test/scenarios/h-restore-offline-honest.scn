@@ -1,16 +1,19 @@
-# A3: an UNREACHABLE server during the pre-launch save check (engine exit 3) must launch
-# silently with the local save and log action=offline — never "no server saves". The
-# 2026-07-02 Smart Pro field session: tailscaled never came up, --list-saves printed nothing
-# with rc=0, and the pak showed "No server saves for ✓ Pokemon Emerald" while both
-# revisions sat on the server.
-desc fetch hook: list-saves unreachable (rc=3) -> silent launch, honest action=offline log
+# A3 + ALWAYS-SHOW (2026-07-11): an UNREACHABLE server during the pre-launch save check
+# (engine exit 3) logs the honest action=card-offline — never "no server saves" — and the
+# card STILL shows: it is honest offline (local saves/states + "unreachable"), so the user
+# always gets the menu even when the gate failed. The 2026-07-02 Smart Pro field session:
+# tailscaled never came up, --list-saves printed nothing with rc=0, and the pak showed
+# "No server saves for ✓ Pokemon Emerald" while both revisions sat on the server.
+desc fetch hook: list-saves unreachable (rc=3) -> honest card-offline log + card still shows
 invoke prehook
 config paired
 romarg Roms/Game Boy Advance (GBA)/✓ Zelda.gba
 sdfile+ Roms/Game Boy Advance (GBA)/✓ Zelda.gba
 engine 3|
+wizard 0|LAUNCHCARD mode=summoned shown=1 action=play evicted=0
 expect_exit 0
 expect_trace ENGINE --list-saves
 expect_trace_absent LIST[
+expect_trace WIZARD --launch-card --summoned
 expect_trace_absent ENGINE --restore-save
-expect_log newest=none action=offline
+expect_log newest=none action=card-offline

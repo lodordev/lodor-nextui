@@ -1,0 +1,20 @@
+# WS-B degrade (b)/(c): if the json list invocation fails for ANY reason (render error, or an
+# old bundled minui-list choking on --format json = any exit outside 0/2/3), ui_list_json falls
+# back to the proven --format text list — the menu ALWAYS works, and the text path's
+# PICK_VAL-is-the-path contract still selects the right game.
+desc Game Manager: json list failure degrades to the text list; flow keeps working
+config paired
+seeded
+sdfile Roms/Game Boy Advance (GBA)/✘ Zelda.gba
+pick 0|Game Manager
+pick 0|Game Boy Advance (GBA)
+pick 42|
+pick 0|✘ Zelda.gba
+pick 2|
+expect_exit 0
+# first attempt: json mode, scripted failure
+expect_trace LIST[Game Boy Advance (GBA)] rc=42 sel='' fmt=json
+expect_log minui-list json path failed (rc=42) - falling back to text list
+# fallback: the SAME list as text (raw marker-prefixed names), selection works
+expect_trace LIST[Game Boy Advance (GBA)] rc=0 sel='✘ Zelda.gba'
+expect_trace LIST[✘ Zelda.gba]

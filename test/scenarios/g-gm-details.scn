@@ -4,7 +4,7 @@ seeded
 sdfile Roms/Game Boy Advance (GBA)/✘ Zelda.gba
 pick 0|Game Manager
 pick 0|Game Boy Advance (GBA)
-pick 0|✘ Zelda.gba
+pick 0|Zelda.gba
 pick 0|Details
 pick 2|
 expect_exit 0

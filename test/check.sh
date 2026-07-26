@@ -19,6 +19,8 @@ POSIX_FILES=(
 	"$NEXTUI/Lodor.pak/lib/romm-sync-lib.sh"
 	"$NEXTUI/Lodor.pak/lib/tailscale-lib.sh"
 	"$NEXTUI/Lodor.pak/lib/show2-lib.sh"
+	"$NEXTUI/Lodor.pak/lib/ui-theme.sh"
+	"$NEXTUI/Lodor.pak/lib/ui-list.sh"
 	"$NEXTUI/Lodor.pak/bin/romm-run"
 	"$NEXTUI/Lodor.pak/bin/romm-syncd"
 	"$NEXTUI"/Lodor.pak/hooks/*/*.sh

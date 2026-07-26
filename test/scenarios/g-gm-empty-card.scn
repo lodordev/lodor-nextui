@@ -4,4 +4,4 @@ seeded
 pick 0|Game Manager
 pick 2|
 expect_exit 0
-expect_trace PRES timeout=4 msg='No game library on this card yet - run Refresh library first'
+expect_trace PRES timeout=4 msg='No game library on this card yet — run Refresh library first'

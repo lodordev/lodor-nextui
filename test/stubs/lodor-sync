@@ -59,11 +59,34 @@ EOF
 			esac
 			;;
 		*" --download "*)
-			# Model the real engine's fill-in-place: on a reported downloaded=1 the target
-			# stub gains real bytes (launch.sh's honest success check re-stats the file).
 			case "$out" in *downloaded=1*)
 				f="$(_url_after_flag --download "$@")"
-				if [ -n "$f" ]; then mkdir -p "$(dirname "$f")" 2>/dev/null; printf 'DLBYTES\n' > "$f"; fi
+				case "$out" in
+					*discs_present=*)
+						# MULTI-DISC (lodor#7 disc-1-first): faithfully model the real engine's
+						# downloadMultiDiscCore — it writes the populated .m3u to the CANONICAL
+						# (marker-STRIPPED) LocalRomPath and disc 1 into the dot-hidden per-game
+						# folder, and LEAVES the launcher-passed "✘ …m3u" stub 0-byte (the ✘→✓
+						# marker swap happens later at mirror time). So the passed path DOES NOT
+						# gain bytes here — that is the exact real-device state (RESULT
+						# downloaded=1 discs_present>=1 but the stub still stat's 0) that the
+						# hook's success check must read from the RESULT, not the stub size.
+						if [ -n "$f" ]; then
+							_dir="$(dirname "$f")"; _b="$(basename "$f")"
+							# strip a leading "✘ "/"✓ " marker to get the canonical stem
+							case "$_b" in "✘ "*) _b="${_b#"✘ "}" ;; "✓ "*) _b="${_b#"✓ "}" ;; esac
+							_stem="${_b%.m3u}"
+							mkdir -p "$_dir/.$_stem" 2>/dev/null
+							printf 'DISCBYTES\n' > "$_dir/.$_stem/$_stem (Disc 1).chd"
+							printf '.%s/%s (Disc 1).chd\n' "$_stem" "$_stem" > "$_dir/$_stem.m3u"
+						fi
+						;;
+					*)
+						# SINGLE-FILE: the engine fills IN PLACE at the passed (marked) stub path,
+						# so on downloaded=1 the target gains real bytes (the hook's belt re-stats it).
+						if [ -n "$f" ]; then mkdir -p "$(dirname "$f")" 2>/dev/null; printf 'DLBYTES\n' > "$f"; fi
+						;;
+				esac
 			esac
 			;;
 		*" --fetch-next-disc "*)

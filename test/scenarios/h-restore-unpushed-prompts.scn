@@ -1,13 +1,15 @@
-# A3: a newer foreign save exists AND the local save is unpushed progress (LOCAL=unpushed —
-# matches no server revision): prompt, never silently overwrite. Declining launches as-is.
-desc fetch hook: LOCAL=unpushed + newer foreign save -> prompt; decline launches with local save
+# A3, launch-card-v2 always-show shape: LOCAL=unpushed (local progress matching no server
+# revision) hands to the wizard like every launch — the v2 contract puts the whole decision
+# in the engine, and the card's Saves view is the explicit, lose-proof restore path.
+desc fetch hook: LOCAL=unpushed + newer foreign save -> full card handoff (engine owns the decision)
 invoke prehook
 config paired
 romarg Roms/Game Boy Advance (GBA)/✓ Zelda.gba
 sdfile+ Roms/Game Boy Advance (GBA)/✓ Zelda.gba
 engine 0|202\t2026-07-02 08:00\tFlip\t33KB\n101\t2026-07-01 10:00\tBrick\t32KB\nLOCAL=unpushed
-pick 2|
+wizard 0|LAUNCHCARD mode=summoned shown=1 action=play evicted=0
 expect_exit 0
-expect_trace LIST[Newer save from Flip — restore?]
+expect_trace WIZARD --launch-card --summoned
+expect_trace_absent LIST[
 expect_trace_absent ENGINE --restore-save
-expect_log newest=foreign action=prompted
+expect_log local=unpushed action=card

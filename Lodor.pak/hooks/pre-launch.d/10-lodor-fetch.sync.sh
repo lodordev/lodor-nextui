@@ -21,20 +21,29 @@ export LODOR_NO_RELOCATE=1
 #
 # Two jobs, in order:
 #   1. If the ROM is a 0-byte Lodor stub -> download it, showing honest "Downloading <game>… NN%".
-#   2. Once the ROM is present (just-downloaded or already real) -> ask the engine for server saves
-#      and gate on the FULL decision matrix (workstream A3, 2026-07-02; STRICT per task #135 —
-#      the gate is the LOCAL= trailer, judged against the save THIS launch will load, never a
-#      coexist twin's; the row-level CURRENT tag is GM display truth only):
-#        LOCAL=current (launched save == newest revision)   -> SILENT launch (no friction)
-#        server saves exist but NO local save (LOCAL=none)  -> pull newest SILENTLY (first play of
-#                                                              this game on this device — nothing
-#                                                              to lose, nothing worth a prompt)
-#        newer/foreign newest + a local save exists         -> PROMPT "Newer save from <device>"
-#        offline / list failed (rc!=0)                      -> SILENT launch (honest degrade)
+#   2. Once the ROM is present (just-downloaded or already real) -> the LAUNCH CARD, ALWAYS
+#      (task launch-card-v2, ALWAYS-SHOW contract 2026-07-11):
+#        - the romm-run --list-saves gate runs ONCE, for its session-setup side effects (Wi-Fi
+#          mutex, clock, tier-1 tunnel, device heal) + offline detection + the A3 log line
+#        - LOCAL=none first play: pull the newest server save silently FIRST (nothing on the
+#          card to lose; a fresh device must not start a blank save), then the card
+#        - then lodor-wizard --launch-card --summoned: the FULL card, EVERY launch — including
+#          when the gate said offline/pairing-expired (the card is honest offline: local
+#          saves/states + "unreachable"). No smart-news silence and no hold-to-summon: the
+#          2026-07-11 Smart Pro flash test proved NextUI's busybox has NO `timeout` binary,
+#          so the bounded evdev summon probe could never fire on this lane — a card the user
+#          cannot summon must simply always appear (his explicit call). Play is one
+#          A/B/Start press, so the steady-state cost is a glance.
+#        - wizard missing/erroring/timing out -> normal launch, NEVER a blocked/dead screen.
 #      EVERY branch logs one reason line to last-sync.log + hook-launch.log:
-#        saves: listed=<N> newest=<current|foreign|none> action=<prompted|silent|pulled|offline>
+#        saves: listed=<N> … action=<card|card-offline|pulled|wizard-missing>
 #      so the next field diagnosis is one log read — the 2026-07-02 Smart Pro session burned hours
 #      because "no server saves" and "server unreachable" were indistinguishable.
+#
+# HARDWARE NOTE (2026-07-11 Smart Pro flash test): the card RENDERS and plays on TrimUI
+# (log: shown=1 action=play rc=0). The fail-safe spine stays the contract regardless: ANY
+# wizard problem must still launch the game (the wizard itself always exits 0; no-fb/
+# no-input degrade to pass-through).
 
 [ "${HOOK_TYPE:-}" = "rom" ] || exit 0
 [ -n "${HOOK_ROM_PATH:-}" ] || exit 0
@@ -54,11 +63,9 @@ PAKDIR="$SDCARD/Tools/$PLAT/Lodor.pak"
 RUN="$PAKDIR/bin/romm-run"
 [ -x "$RUN" ] || exit 0
 
-# minui-list / minui-presenter live under bin/<tg5040|tg5050>; tg3040 reuses the tg5040 build.
-BINPLAT="${PLATFORM:-tg5040}"
-[ "$BINPLAT" = "tg3040" ] && BINPLAT="tg5040"
-LISTBIN="$PAKDIR/bin/$BINPLAT/minui-list"
-PRESBIN="$PAKDIR/bin/$BINPLAT/minui-presenter"
+# The launch card renders its OWN framebuffer UI (engine-side ui package) — the old
+# minui-list/minui-presenter restore picker is gone from this hook (launch-card-v2).
+WIZ="$PAKDIR/lodor-wizard"
 
 HOOKLOG="$PAKDIR/hook-launch.log"
 hlog() { echo "$(date +'%F %T') $*" >> "$HOOKLOG" 2>/dev/null; }
@@ -78,6 +85,11 @@ case "$GAME" in
 	"[v] "*) GAME="${GAME#"[v] "}" ;;
 esac
 
+# Engine progress side-channels live under LODOR_PROGRESS_DIR (default /tmp, device-identical;
+# the engine honors the same var). The test harness points it at a per-scenario dir so
+# dl-progress/romm-phase can't bleed across scenarios (flaky-gate fix, shell MED-1).
+PROGDIR="${LODOR_PROGRESS_DIR:-/tmp}"
+
 # Shared on-screen presenter (show2.elf). SHOW2_LOGO need not exist (show2 draws text-only).
 SHOW2_LOGO="$PAKDIR/res/lodor.png"
 SHOW2_LOGFN="hlog"
@@ -94,21 +106,25 @@ trap 'ui_stop; killall minui-presenter >/dev/null 2>&1 || true; killall minui-li
 STUB_FILLED=0
 if [ ! -s "$HOOK_ROM_PATH" ]; then
 	hlog "=== fetch-on-launch: $HOOK_ROM_PATH (0-byte stub) ==="
-	rm -f /tmp/dl-progress /tmp/romm-phase 2>/dev/null
+	rm -f "$PROGDIR/dl-progress" "$PROGDIR/romm-phase" 2>/dev/null
 	ui_begin "Downloading $GAME…"
 
 	# Run the engine download in the background so we can stream progress to the screen.
-	"$RUN" --download "$HOOK_ROM_PATH" >/dev/null 2>&1 &
+	# Capture stdout (the RESULT line) — multi-disc success can't be read off the passed
+	# stub path (see the success check below), so the engine's RESULT is the truth signal.
+	dlout="/tmp/lodor-dl-result.$$"
+	rm -f "$dlout" 2>/dev/null
+	"$RUN" --download "$HOOK_ROM_PATH" >"$dlout" 2>/dev/null &
 	dlpid=$!
 
-	# Bridge the engine side-channels -> show2: a numeric /tmp/dl-progress drives the bar + a
+	# Bridge the engine side-channels -> show2: a numeric $PROGDIR/dl-progress drives the bar + a
 	# "Downloading <game>… NN%" line; before the transfer starts (clock/connect) we mirror the
-	# engine's human phase label from /tmp/romm-phase. Never fabricate forward progress.
+	# engine's human phase label from $PROGDIR/romm-phase. Never fabricate forward progress.
 	while kill -0 "$dlpid" 2>/dev/null; do
-		pct=""; [ -f /tmp/dl-progress ] && pct="$(cat /tmp/dl-progress 2>/dev/null)"
+		pct=""; [ -f "$PROGDIR/dl-progress" ] && pct="$(cat "$PROGDIR/dl-progress" 2>/dev/null)"
 		case "$pct" in
 			''|*[!0-9]*)
-				ph=""; [ -f /tmp/romm-phase ] && ph="$(cat /tmp/romm-phase 2>/dev/null)"
+				ph=""; [ -f "$PROGDIR/romm-phase" ] && ph="$(cat "$PROGDIR/romm-phase" 2>/dev/null)"
 				[ -n "$ph" ] && ui_set "$ph"
 				;;
 			*)
@@ -118,11 +134,48 @@ if [ ! -s "$HOOK_ROM_PATH" ]; then
 		sleep 0.3
 	done
 	wait "$dlpid"; dlrc=$?
-	hlog "download rc=$dlrc size=$(wc -c < "$HOOK_ROM_PATH" 2>/dev/null)"
+	dlresult="$(cat "$dlout" 2>/dev/null | grep '^RESULT' | tail -1)"
+	rm -f "$dlout" 2>/dev/null
 
-	# HONEST verification: success requires rc=0 AND the file is now real (non-empty).
-	if [ "$dlrc" = 0 ] && [ -s "$HOOK_ROM_PATH" ]; then
-		ui_set "Downloaded ✓" 100
+	# HONEST verification — engine RESULT is authoritative, NOT the raw stub byte-size.
+	#
+	#   SINGLE-FILE: the engine fills IN PLACE at the passed (marked) stub path, so after a
+	#     rc=0 downloaded=1 the stub IS the real file — [ -s "$HOOK_ROM_PATH" ] holds and is
+	#     kept as the concrete belt.
+	#   MULTI-DISC (.m3u, lodor#7 disc-1-first): the engine writes the populated .m3u to the
+	#     CANONICAL (unmarked) LocalRomPath + discs into the dot-hidden per-game folder, then
+	#     swaps the ✘→✓ marker later at mirror time. The launcher-passed "✘ …m3u" stub is
+	#     LEFT 0-byte on purpose — so stat-ing it reads size=0 and the old check declared a
+	#     FALSE FAILURE even though disc 1 landed and the game plays (real-device evidence
+	#     2026-07-12: RESULT downloaded=1 discs_total=4 discs_present=1, rc=0, but "size=0").
+	#     Trust the RESULT: downloaded=1 with discs_present>=1 means LAUNCHABLE.
+	# Genuine failures (rc!=0, or downloaded=0 / discs_present=0) still fall through to the
+	# honest error path below — this only stops false-positives, never masks a real failure.
+	dl_ok=0
+	case "$dlresult" in
+		*"downloaded=1"*)
+			case "$dlresult" in
+				*discs_present=*)
+					# multi-disc: launchable iff at least one disc is present
+					dp="${dlresult##*discs_present=}"; dp="${dp%% *}"
+					case "$dp" in ''|*[!0-9]*) dp=0 ;; esac
+					[ "$dp" -ge 1 ] && dl_ok=1
+					;;
+				*)
+					# single-file downloaded=1: the in-place fill must have produced bytes
+					[ -s "$HOOK_ROM_PATH" ] && dl_ok=1
+					;;
+			esac
+			;;
+	esac
+	# Fallback (belt): no parseable RESULT (older engine / merged-stderr noise) but rc=0 and
+	# the passed path is now non-empty -> single-file success, unchanged pre-fix behavior.
+	[ "$dl_ok" = 0 ] && [ "$dlrc" = 0 ] && [ -s "$HOOK_ROM_PATH" ] && dl_ok=1
+	hlog "download rc=$dlrc dl_ok=$dl_ok stub_size=$(wc -c < "$HOOK_ROM_PATH" 2>/dev/null) result='${dlresult:-none}'"
+
+	if [ "$dlrc" = 0 ] && [ "$dl_ok" = 1 ]; then
+		# ASCII only: show2's font has no ✓ glyph (2026-07-11 flash test rendered tofu).
+		ui_set "Downloaded" 100
 		sleep 1
 		ui_stop
 		STUB_FILLED=1
@@ -141,14 +194,18 @@ if [ ! -s "$HOOK_ROM_PATH" ]; then
 			6) # PAIRING_EXPIRED contract (engine exit 6): flag it for the Tools-menu banner too.
 			   : > "$PAKDIR/.pairing-expired" 2>/dev/null
 			   ui_error "Pairing expired — open Tools > Lodor to re-pair. The game screen that follows will fail to open — that's expected. Re-pair and launch again." ;;
-			2|102) ui_error "Wi-Fi not connected — enable it in NextUI Settings. The game screen that follows will fail to open — that's expected. Fix the connection and launch again." ;;
+			102) ui_error "Wi-Fi not connected — enable it in NextUI Settings. The game screen that follows will fail to open — that's expected. Fix the connection and launch again." ;;
+			2) ui_error "Lodor hit an internal error — details in last-sync.log. The game screen that follows will fail to open — that's expected. If it keeps happening, re-pair via Tools > Lodor." ;;
 			103) ui_error "Another sync is running — try again shortly. The game screen that follows will fail to open — that's expected. Wait a moment and launch again." ;;
 			3) ui_error "Couldn't reach your server — check the server or your connection. The game screen that follows will fail to open — that's expected. Fix the connection and launch again." ;;
-			4) ui_error "The server had a problem sending this game — try again. The game screen that follows will fail to open — that's expected. Fix the connection and launch again." ;;
+			# rc=0 here means the engine RAN but reported downloaded=0 / discs_present=0 (a real
+			# transfer/server problem: hash mismatch, empty files[], no disc landed) — same class
+			# as rc=4, so it gets that honest message rather than a mystery "unknown cause".
+			4|0) ui_error "The server had a problem sending this game — try again. The game screen that follows will fail to open — that's expected. Fix the connection and launch again." ;;
 			101) ui_error "Lodor is broken on this card — reinstall it from the Pak Store. The game screen that follows will fail to open — that's expected. Reinstall Lodor and launch again." ;;
 			*) ui_error "Couldn't download $GAME — unknown cause, try again (details in last-sync.log). The game screen that follows will fail to open — that's expected." ;;
 		esac
-		hlog "download FAILED (rc=$dlrc) — leaving 0-byte stub; emulator will surface the load error"
+		hlog "download FAILED (rc=$dlrc result='${dlresult:-none}') — leaving stub; emulator will surface the load error"
 		exit 0
 	fi
 fi
@@ -195,16 +252,16 @@ rom_incomplete() {
 M3U="$(m3u_for "$HOOK_ROM_PATH")"
 if [ -n "$M3U" ] && [ -s "$M3U" ] && [ "$STUB_FILLED" != 1 ] && rom_incomplete "$M3U"; then
 	hlog "=== next-disc fetch: $M3U (populated m3u, incomplete disc set) ==="
-	rm -f /tmp/dl-progress /tmp/romm-phase 2>/dev/null
+	rm -f "$PROGDIR/dl-progress" "$PROGDIR/romm-phase" 2>/dev/null
 	ui_begin "Downloading $GAME…"
 
 	"$RUN" --fetch-next-disc "$M3U" >/dev/null 2>&1 &
 	ndpid=$!
 	while kill -0 "$ndpid" 2>/dev/null; do
-		pct=""; [ -f /tmp/dl-progress ] && pct="$(cat /tmp/dl-progress 2>/dev/null)"
+		pct=""; [ -f "$PROGDIR/dl-progress" ] && pct="$(cat "$PROGDIR/dl-progress" 2>/dev/null)"
 		case "$pct" in
 			''|*[!0-9]*)
-				ph=""; [ -f /tmp/romm-phase ] && ph="$(cat /tmp/romm-phase 2>/dev/null)"
+				ph=""; [ -f "$PROGDIR/romm-phase" ] && ph="$(cat "$PROGDIR/romm-phase" 2>/dev/null)"
 				[ -n "$ph" ] && ui_set "$ph"
 				;;
 			*)
@@ -224,141 +281,116 @@ if [ -n "$M3U" ] && [ -s "$M3U" ] && [ "$STUB_FILLED" != 1 ] && rom_incomplete "
 		sleep 2
 	else
 		hlog "discs: next disc landed game=$GAME"
-		ui_set "Downloaded ✓" 100
+		ui_set "Downloaded" 100
 		sleep 1
 	fi
 	ui_stop
 fi
 
 # --------------------------------------------------------------------------------------------------
-# 2. RESTORE-ON-LAUNCH — the ROM is now present. Offer server saves, if any, via minui-list.
-#    (The old SDL lodor-picker was retired; we use the proven minui-list/minui-presenter the rest of
-#    the pak already uses — the stock Wifi.pak drives them identically.)
+# 2. LAUNCH CARD, ALWAYS (task launch-card-v2, always-show 2026-07-11) — the ROM is now present.
+#    The engine's own per-game card (lodor-wizard --launch-card --summoned): cover-art hero,
+#    Play/States/Saves/Manage, D8-compat-dimmed states. It shows on EVERY launch: the old smart
+#    (news-only) silence and the hold-to-summon evdev probe are GONE — NextUI's busybox ships no
+#    `timeout` binary, so the bounded probe could never fire on this lane (2026-07-11 flash test:
+#    "evprobe: no timeout binary -> skip" on every launch), and a card the user cannot summon
+#    must simply always appear. The wizard ALWAYS exits 0 and its Play action simply returns —
+#    a pre-launch hook cannot cancel the launch and the card never tries to. Fail-safe spine:
+#    wizard missing, fb/input open failure, engine probe failure, timeout — ALL degrade to the
+#    normal launch, never a blocked/dead screen.
+#
+#    KEPT FROM THE OLD GATE (the card is NOT a superset of these two):
+#      - the romm-run --list-saves gate + A3 log line (romm-run does the session setup — Wi-Fi
+#        mutex, clock, tier-1 tunnel, device heal — that the wizard's DIRECT lodor-sync calls
+#        skip; and it detects offline/pairing-expired honestly)
+#      - the LOCAL=none first-play silent pull (nothing on the card to lose; a fresh device
+#        must not start a blank save behind a card whose default action is Play). The card
+#        still shows afterwards — its Saves view remains the explicit restore path.
 # --------------------------------------------------------------------------------------------------
-# No picker available -> launch with the current local save (honest degrade, never block).
-[ -x "$LISTBIN" ] || { hlog "minui-list missing -> launching with current save"; exit 0; }
 
-# free show2's framebuffer before minui-list draws.
+# wizard_card — run the launch card (FULL card, --summoned), fail-safe. Returns 1 ONLY when the
+# wizard binary is missing/not executable (callers log wizard-missing and launch as-is); every
+# other outcome — card shown, wizard error, timeout — returns 0 with the rc logged. cd + env
+# mirror the contract romm-run gives lodor-sync (config.json loads CWD-relative; the wizard finds
+# the engine next to itself, LODOR_BIN as belt-and-suspenders). 90s timeout = muOS-lane parity;
+# without a timeout binary — the NextUI reality — it runs unwrapped (the wizard's engine calls
+# carry their own deadlines, and the card itself waits on the user by design).
+wizard_card() {
+	[ -x "$WIZ" ] || { hlog "launch-card: lodor-wizard missing -> skip (fail-safe)"; return 1; }
+	ui_stop
+	killall minui-presenter >/dev/null 2>&1 || true
+	(
+		cd "$PAKDIR" 2>/dev/null || exit 125
+		export BASE_PATH="$SDCARD" LODOR_PAK_DIR="$PAKDIR" LODOR_BIN="$PAKDIR/lodor-sync"
+		export SSL_CERT_FILE="$PAKDIR/certs/ca-certificates.crt"
+		# SDL DISPLAY lane (launch-card-v2): NextUI panels present through lodor-fbhelper (raw
+		# /dev/fb0 is dead here); input stays the Go EvdevSource. LODOR_HOST_OS=nextui (set at
+		# the top of this hook) selects the lane; point the wizard at the bundled helper
+		# explicitly (belt — spikeHelperPath also finds it as a sibling of lodor-wizard).
+		export LODOR_FBHELPER="$PAKDIR/lodor-fbhelper"
+		# The device SDL2 the helper NEEDs (2.30.8) lives in /usr/trimui/lib, like every stock pak.
+		export LD_LIBRARY_PATH="/usr/trimui/lib:${LD_LIBRARY_PATH:-}"
+		set -- --launch-card --summoned "$HOOK_ROM_PATH"
+		if command -v timeout >/dev/null 2>&1; then
+			exec timeout 90 "$WIZ" "$@"
+		fi
+		exec "$WIZ" "$@"
+	) >> "$HOOKLOG" 2>&1
+	hlog "launch-card rc=$?"
+	return 0
+}
+
+# free show2's framebuffer before any card draw.
 ui_stop
 
-# Ask the engine which server saves exist (newest-first TSV: <id>\t<date>\t<who>\t<kb>KB[\tCURRENT],
-# then a single-field "LOCAL=<none|current|older|unpushed|deleted>" trailer describing the
-# on-device save).
-# romm-run merges stderr into stdout, so keep only well-formed rows (>=2 tab fields) — the trailer
-# is deliberately tab-free so this filter drops it from the row set.
+# Reachability gate + A3 decision log, via romm-run (session setup: Wi-Fi mutex, clock, tier-1
+# tunnel, device heal). Ask the engine which server saves exist (newest-first TSV:
+# <id>\t<date>\t<who>\t<kb>KB[\tCURRENT], then a tab-free "LOCAL=<none|current|older|unpushed|
+# deleted>" trailer describing the save THIS launch will load). romm-run merges stderr into
+# stdout, so keep only well-formed rows (>=2 tab fields) — the trailer drops out of the row set.
 saves_raw="$("$RUN" --list-saves "$HOOK_ROM_PATH" 2>/dev/null)"
 lsrc=$?
 saves="$(printf '%s\n' "$saves_raw" | awk -F'\t' 'NF>=2')"
 localstate="$(printf '%s\n' "$saves_raw" | sed -n 's/^LOCAL=//p' | head -1)"
 nsaves=0; [ -n "$saves" ] && nsaves="$(printf '%s\n' "$saves" | wc -l | tr -d ' ')"
 
-# OFFLINE / LIST FAILURE (rc!=0 — exit 3 unreachable, 6 pairing-expired, 2 no Wi-Fi): launch with
-# the local save, honestly logged. NEVER claim "no server saves" when we couldn't ask.
+# OFFLINE / LIST FAILURE (rc!=0 — exit 3 unreachable, 6 pairing-expired, 2/102 no Wi-Fi): the
+# card STILL shows (always-show): it is honest offline — local saves/states + "unreachable" —
+# and the user always gets the menu. NEVER claim "no server saves" when we couldn't ask; the
+# A3 line records the gate verdict so the card's own probe failures read as confirmation, not
+# a mystery. Wizard missing -> logged, normal launch.
 if [ "$lsrc" != 0 ]; then
 	[ "$lsrc" = 6 ] && : > "$PAKDIR/.pairing-expired" 2>/dev/null
-	slog "saves: listed=0 newest=none action=offline (rc=$lsrc) game=$GAME"
+	slog "saves: listed=0 newest=none action=card-offline (rc=$lsrc) game=$GAME"
+	if ! wizard_card; then
+		slog "saves: listed=0 newest=none action=wizard-missing (launching as-is) game=$GAME"
+	fi
 	exit 0
 fi
-# Zero server saves (a REAL empty answer, rc=0): nothing to offer.
-if [ -z "$saves" ]; then
-	slog "saves: listed=0 newest=none action=silent game=$GAME"
-	exit 0
-fi
-
-TAB="$(printf '\t')"
-newest="$(printf '%s\n' "$saves" | head -1)"
-# OVER-PROMPT GUARD (parity item #1), STRICT since task #135: silent ONLY on the engine's
-# LOCAL=current trailer, which is judged against the save THIS launch will load and only
-# against the NEWEST revision. The row-level CURRENT tag is the Game Manager's display truth
-# ("these bytes are on this device" — possibly in the coexist TWIN's save file): gating on it
-# silently launched the clean twin into its OLDER save while the (RomM) twin held the newest
-# bytes (Smart Pro 2026-07-03 — both Emerald launches logged newest=current action=silent
-# while the launched save matched only the OLDER rev 467).
-if [ "$localstate" = "current" ]; then
-	slog "saves: listed=$nsaves newest=current action=silent local=current game=$GAME"
-	exit 0
-fi
-# DELETED-SAVE TOMBSTONE: the engine's save ledger proves the launched save was deliberately
-# DELETED on this device after a sync and the server holds nothing newer — honor the deletion
-# silently instead of resurrecting it (the pre-tombstone behavior restored the newest server
-# save on every launch). Server Saves in the game menu is the explicit way back — an explicit
-# restore always resurrects. (Older engines never emit "deleted"; nothing to degrade.)
-if [ "$localstate" = "deleted" ]; then
-	slog "saves: listed=$nsaves newest=tombstoned action=silent local=deleted game=$GAME"
-	exit 0
-fi
-# No trailer at all (an older engine build): fall back to the legacy newest-row CURRENT check
-# rather than prompting on every launch.
-if [ -z "$localstate" ]; then
-	case "$newest" in
-		*"${TAB}CURRENT")
-			slog "saves: listed=$nsaves newest=current action=silent local=no-trailer game=$GAME"
-			exit 0 ;;
-	esac
-fi
-newest_who="$(printf '%s\n' "$newest" | cut -f3)"
-newest_id="$(printf '%s\n' "$newest" | cut -f1)"
 
 # FIRST PLAY ON THIS DEVICE (A3): server saves exist but there is NO local save (LOCAL=none from
-# the engine — content-verified, not guessed). Pull the newest silently: there is nothing on the
-# card to lose and nothing to choose between, so a prompt would be pure friction. A restore
-# failure degrades to launching fresh (the emulator starts a new save) — logged, never masked.
-if [ "$localstate" = "none" ]; then
+# the engine — content-verified, not guessed). Pull the newest silently BEFORE the card: there is
+# nothing on the card to lose and nothing to choose between, and the card's default action is
+# Play — a blank first save must never race a one-press launch. A pull failure degrades to
+# launching fresh — logged, never masked. The card still shows below (always-show); its Saves
+# view is the explicit path to any other revision.
+if [ "$localstate" = "none" ] && [ -n "$saves" ]; then
+	newest="$(printf '%s\n' "$saves" | head -1)"
+	newest_id="$(printf '%s\n' "$newest" | cut -f1)"
+	newest_who="$(printf '%s\n' "$newest" | cut -f3)"
 	if "$RUN" --restore-save "$HOOK_ROM_PATH" "$newest_id" 2>/dev/null | grep -q 'restored=1'; then
 		slog "saves: listed=$nsaves newest=foreign action=pulled (save $newest_id from ${newest_who:-unknown}) game=$GAME"
 	else
-		slog "saves: listed=$nsaves newest=foreign action=offline (silent pull of save $newest_id failed) game=$GAME"
+		slog "saves: listed=$nsaves newest=foreign action=pull-failed (silent pull of save $newest_id failed; launching fresh) game=$GAME"
 	fi
-	exit 0
 fi
 
-# Newer/foreign newest + a local save exists (LOCAL=older|unpushed, or an older engine that emits
-# no trailer): worth interrupting the launch — the user decides. The restore path preserves the
-# current save first (pushed to the timeline, or staged offline), so either answer is lose-proof.
-slog "saves: listed=$nsaves newest=foreign action=prompted (from ${newest_who:-unknown}, local=${localstate:-unknown}) game=$GAME"
-
-# Build the minui-list display file + a PARALLEL id file in the SAME line order. Line 1 = continue.
-LST="/tmp/lodor-restore-list"; IDS="/tmp/lodor-restore-ids"; OUT="/tmp/lodor-restore-out"
-: > "$LST"; : > "$IDS"; rm -f "$OUT"
-printf '%s\n' "Continue without restoring" >> "$LST"
-printf '%s\n' "__none__" >> "$IDS"
-# --list-saves emits "<id>\t<YYYY-MM-DD HH:MM>\t<who>\t<kb>KB[\tCURRENT]" — with IFS=TAB the
-# date+time stays one field. CURRENT (when present) marks the revision matching the on-device save.
-printf '%s\n' "$saves" | while IFS="$TAB" read -r sid sdate swho ssize scur; do
-	label="$sdate  -  $swho  -  $ssize"
-	[ "$scur" = "CURRENT" ] && label="$label  (on this device)"
-	printf '%s\n' "$label" >> "$LST"
-	printf '%s\n' "$sid" >> "$IDS"
-done
-
-killall minui-presenter >/dev/null 2>&1 || true
-"$LISTBIN" --disable-auto-sleep --file "$LST" --format text \
-	--title "Newer save from ${newest_who:-your server} — restore?" --confirm-text "RESTORE" --cancel-text "SKIP" \
-	--write-location "$OUT"
-lrc=$?
-sel="$(cat "$OUT" 2>/dev/null)"
-hlog "restore picker rc=$lrc sel=[$sel]"
-
-# Map the selected line text back to its save id by line number (first exact match in the display
-# file). Restore ONLY on a real save pick (rc=0). SKIP/B/render-fail or the Continue row -> launch as-is.
-chosen_id=""
-if [ "$lrc" = 0 ] && [ -n "$sel" ]; then
-	ln="$(grep -n -F -x "$sel" "$LST" 2>/dev/null | head -1 | cut -d: -f1)"
-	[ -n "$ln" ] && chosen_id="$(sed -n "${ln}p" "$IDS" 2>/dev/null)"
-fi
-
-if [ -n "$chosen_id" ] && [ "$chosen_id" != "__none__" ]; then
-	killall minui-presenter >/dev/null 2>&1 || true
-	[ -x "$PRESBIN" ] && "$PRESBIN" --message "Restoring save…" --timeout -1 >/dev/null 2>&1 &
-	if "$RUN" --restore-save "$HOOK_ROM_PATH" "$chosen_id" >/dev/null 2>&1; then
-		killall minui-presenter >/dev/null 2>&1 || true
-		hlog "restore OK (save $chosen_id)"
-		[ -x "$PRESBIN" ] && "$PRESBIN" --message "Restored ✓" --timeout 1 >/dev/null 2>&1
-	else
-		killall minui-presenter >/dev/null 2>&1 || true
-		hlog "restore FAILED (save $chosen_id) -> launching without it"
-		[ -x "$PRESBIN" ] && "$PRESBIN" --message "Restore failed — launching without it" --timeout 3 >/dev/null 2>&1
-	fi
+# THE CARD, every launch. The engine owns every decision on it (STRICT #135 LOCAL=older lineage,
+# deleted-save tombstones, the twin/CURRENT-tag trap, D8 state compat) — this hook renders
+# nothing and decides nothing. Play is one press; States/Saves/Manage are one press away.
+slog "saves: listed=$nsaves local=${localstate:-unknown} action=card game=$GAME"
+if ! wizard_card; then
+	slog "saves: listed=$nsaves local=${localstate:-unknown} action=wizard-missing (launching as-is) game=$GAME"
 fi
 
 exit 0

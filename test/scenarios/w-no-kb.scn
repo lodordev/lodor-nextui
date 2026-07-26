@@ -5,4 +5,4 @@ pick 0|https (secure, recommended)
 pick 2|
 expect_exit 0
 expect_config_absent
-expect_log err: On-screen keyboard missing - reinstall the Lodor pak
+expect_log err: On-screen keyboard missing — reinstall the Lodor pak

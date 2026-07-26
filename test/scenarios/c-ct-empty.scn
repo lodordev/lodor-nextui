@@ -4,6 +4,6 @@ desc Continue dispatcher: no head file -> honest empty state, zero side effects
 invoke ctpak
 config paired
 expect_exit 0
-expect_trace PRES timeout=4 msg='Nothing to continue yet - play something!'
+expect_trace PRES timeout=4 msg='Nothing to continue yet — play something!'
 expect_trace_absent ENGINE
 expect_trace_absent EMULAUNCH

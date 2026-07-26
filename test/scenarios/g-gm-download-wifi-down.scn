@@ -5,9 +5,9 @@ wifi down
 sdfile Roms/Game Boy Advance (GBA)/✘ Zelda.gba
 pick 0|Game Manager
 pick 0|Game Boy Advance (GBA)
-pick 0|✘ Zelda.gba
+pick 0|Zelda.gba
 pick 0|Download now
 pick 2|
 expect_exit 0
 expect_trace_absent ENGINE --download
-expect_log err: Wi-Fi not connected - enable it in NextUI Settings, then retry
+expect_log err: Wi-Fi not connected — enable it in NextUI Settings, then retry

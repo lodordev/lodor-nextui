@@ -14,4 +14,4 @@ kb 2|
 expect_exit 0
 expect_config_has "root_uri": "http://romm.local"
 expect_config_lacks token
-expect_log err: SETSERVERFAIL disk full (scripted) - check it and retry
+expect_log err: SETSERVERFAIL disk full (scripted) — check it and retry

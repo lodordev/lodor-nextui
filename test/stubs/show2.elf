@@ -8,7 +8,10 @@
 #   SHOW2 simple text='…'     a one-shot screen (ui_simple / ui_error)
 set -u
 T="${LODOR_SIM_DIR:?}/trace.log"
-FIFO="/tmp/show2.fifo"
+# Honor LODOR_TMP exactly as show2-lib.sh does (flaky-gate fix, shell MED-1): lib + stub must
+# agree on the FIFO path, and the harness points LODOR_TMP at a per-scenario dir. Default /tmp
+# mirrors the real show2.elf's hardcoded /tmp/show2.fifo.
+FIFO="${LODOR_TMP:-/tmp}/show2.fifo"
 mode=""; text=""
 for a in "$@"; do
 	case "$a" in

@@ -300,8 +300,8 @@ tailscale_reconnect() {
 # tailscale_up_interactive — start userspace tailscaled (if needed), then run an INTERACTIVE
 # `tailscale up` (NO --auth-key) in the BACKGROUND so it prints the login URL and waits for
 # the user to authenticate. Scrapes the https://login.tailscale.com/... URL and echoes ONLY
-# that URL on stdout (empty on skip/failure OR when already signed in). NEVER blocks longer
-# than the ~15s scrape window.
+# that URL on stdout (empty on skip/failure OR when already signed in). Waits up to a 60s wall-clock window
+# (see the muOS lib note — first-handshake on fresh hardware took 29s).
 tailscale_up_interactive() {
 	_ts_capable || { echo ""; return 1; }
 	[ -x "$TS_BIN_DIR/tailscaled" ] || { echo ""; return 1; }
@@ -339,8 +339,11 @@ tailscale_up_interactive() {
 		--accept-routes=false >> "$UP_LOG" 2>&1 &
 	echo $! > "$TS_STATEDIR/up.pid" 2>/dev/null
 
-	i=0; url=""; _prev=""
-	while [ "$i" -lt 150 ]; do
+	url=""; _prev=""; _t0=$(date +%s)
+	# 60s WALL-CLOCK window (was ~15s by iteration count): the first control-plane handshake
+	# on a fresh node took 29s on RG34XX-H hardware (2026-07-21) — the URL was still in
+	# flight when the old window gave up. Applies fleet-wide; hardware-evidenced on muOS.
+	while [ $(( $(date +%s) - _t0 )) -lt 60 ]; do
 		# PRIMARY: the daemon's status JSON AuthURL — atomic and complete by construction.
 		# (Scraping up.log raced `tailscale up`'s buffered writes: boot 3 captured a 31-char
 		# half-flushed URL. The JSON field can never be partially written.)
@@ -355,7 +358,7 @@ tailscale_up_interactive() {
 		_prev="$_u2"
 		"$TS_BIN_DIR/tailscale" --socket="$TS_SOCK" status --json 2>/dev/null \
 			| grep -q '"BackendState"[[:space:]]*:[[:space:]]*"Running"' && break
-		sleep 0.1; i=$((i + 1))
+		sleep 0.25
 	done
 	[ -n "$url" ] && ts_log "interactive: login URL captured (len=${#url})"
 	echo "$url"

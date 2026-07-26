@@ -6,7 +6,7 @@ desc menu (#124): pairing-expired banner shows from the flag; a successful sync 
 config paired
 seeded
 sdfile Tools/tg5040/Lodor.pak/.pairing-expired
-pick 0|! Pairing expired - re-pair
+pick 0|! Pairing expired — re-pair
 pick 2|
 pick 0|Sync now
 engine 0|RESULT ok

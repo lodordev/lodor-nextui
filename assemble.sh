@@ -30,6 +30,13 @@ CERT="${CERT:-$MONO/lodoros/paks/Lodor.pak/certs/ca-certificates.crt}"
 TSBIN="${TSBIN:-/mnt/cache/tmp/ts-stage/official-1.94.1}"   # static aarch64 tailscaled + tailscale (official v1.94.1)
 TCIMG="${TCIMG:-tg5040-toolchain:latest}"                    # NextUI aarch64 toolchain (SDL2) — builds lodor-qr
 QRSRC="$HERE/qr-helper"                                       # standalone SDL QR helper source (qrcodegen + embedded font)
+EMUSRC="$HERE/emus"                                          # Lodor-NextUI Emu-pak overlays (GBA=mgba fleet flip)
+# NextUI-built, ABI-matched mgba_libretro.so (the one NextUI ships in MGBA.pak/SGB.pak via
+# CORES+= mgba) — NOT the Lodor mgba-cert binary. Point at a NextUI cores build output or the
+# stock EXTRAS MGBA.pak. mGBA is a HARD Lodor dependency (GBA save-state sync is only
+# deterministic on mgba); assemble FATALs if this is missing. Defaults to the canonical
+# lodor-nextui-stage core. NOT committed to this public repo (build artifact).
+MGBACORE="${MGBACORE:-/mnt/cache/tmp/lodor-nextui-stage/Emus/tg5040/MGBA.pak/mgba_libretro.so}"
 
 echo "== building arm64 engine from $(cd "$MONO" && git rev-parse --short HEAD) =="
 ENG="$MONO/engine/.build-nextui-arm64-$(cd "$MONO" && git rev-parse --short HEAD)"
@@ -37,6 +44,18 @@ docker run --rm -v "$MONO/engine":/src -w /src \
   -e GOCACHE=/tmp/gc -e GOPATH=/tmp/gp -e CGO_ENABLED=0 -e GOOS=linux -e GOARCH=arm64 \
   golang:1.25 go build -trimpath -ldflags="-s -w -X lodor/buildinfo.Version=$(cat "$MONO/VERSION")" -o "/src/$(basename "$ENG")" ./cmd/lodor-sync
 file "$ENG" | grep -q aarch64 || { echo "FATAL: engine is not arm64"; exit 1; }
+
+# Launch-card wizard (task launch-card-v2): the SAME build recipe as the lane's lodor-sync —
+# golang:1.25, CGO-free, arm64, DEFAULT build tags (no -tags muos: NextUI rides the default
+# MinUI-family platform paths + LODOR_HOST_OS=nextui at runtime, exactly like the engine above;
+# the muos tag is for the muOS/Knulli apps only). Lands at PAK ROOT next to lodor-sync because
+# the wizard resolves the engine as its own sibling (engineBin() in cmd/lodor-wizard/main.go).
+echo "== building arm64 launch-card wizard (lodor-wizard) =="
+WIZ="$MONO/engine/.build-nextui-wizard-arm64-$(cd "$MONO" && git rev-parse --short HEAD)"
+docker run --rm -v "$MONO/engine":/src -w /src \
+  -e GOCACHE=/tmp/gc -e GOPATH=/tmp/gp -e CGO_ENABLED=0 -e GOOS=linux -e GOARCH=arm64 \
+  golang:1.25 go build -trimpath -ldflags="-s -w -X lodor/buildinfo.Version=$(cat "$MONO/VERSION")" -o "/src/$(basename "$WIZ")" ./cmd/lodor-wizard
+file "$WIZ" | grep -q aarch64 || { echo "FATAL: lodor-wizard is not arm64"; exit 1; }
 
 echo "== building aarch64 QR helper (lodor-qr) in $TCIMG =="
 QRBIN_OUT="$QRSRC/lodor-qr"
@@ -47,6 +66,16 @@ docker run --rm -v "$QRSRC":/src -w /src "$TCIMG" sh -c '
     lodor-qr.c qrcodegen.c -o lodor-qr \
     -L$SR/lib -lSDL2 -lSDL2_ttf -lpthread -ldl -lm'
 file "$QRBIN_OUT" | grep -q aarch64 || { echo "FATAL: lodor-qr is not arm64"; exit 1; }
+
+echo "== building aarch64 SDL frame-helper (lodor-fbhelper) in $TCIMG =="
+# The SDL-lane DISPLAY backend for the launch card (task launch-card-v2). Same toolchain +
+# /usr/trimui/lib SDL2 as lodor-qr; DISPLAY ONLY (reads no input — input is the Go
+# EvdevSource). Built once (arm64) and dropped next to lodor-wizard so spikeHelperPath()
+# resolves it as a sibling.
+FBSRC="$HERE/fbhelper"
+FBBIN_OUT="$FBSRC/lodor-fbhelper"
+sh "$FBSRC/build.sh"
+file "$FBBIN_OUT" | grep -q aarch64 || { echo "FATAL: lodor-fbhelper is not arm64"; exit 1; }
 
 rm -rf "$OUT"; mkdir -p "$OUT"
 for PLAT in tg5040 tg5050; do
@@ -63,6 +92,8 @@ for PLAT in tg5040 tg5050; do
   cp "$PAKSRC/pak.json" "$D/pak.json"
   cp "$PAKSRC/config.json.template" "$D/config.json.template"
   cp "$ENG" "$D/lodor-sync"
+  cp "$WIZ" "$D/lodor-wizard"   # launch card (hook 10 calls it; engine resolved as sibling)
+  cp "$FBBIN_OUT" "$D/lodor-fbhelper"   # SDL-lane DISPLAY backend (launch card; wizard spawns it as a sibling)
   cp "$CERT" "$D/certs/ca-certificates.crt"
   # Handoff manifests (#27) — LIGHTS statesync on NextUI. Both tg5040/tg5050 are arm64.
   # dir = minarch {TAG}-{core} under .userdata/shared/ (verified off NextUI source:
@@ -70,8 +101,12 @@ for PLAT in tg5040 tg5050; do
   # RomM fs_slug verified live (genesis, NOT megadrive; mastersystem, NOT sms). NextUI
   # runs snes9x (full) for SNES — matches Knulli/Android/muOS(post-#11) arm64 snes9x
   # club, not the Miyoo armhf snes9x2005_plus (SNES is within-bitness-group by design).
-  #   GBA=gpsp matches LodorOS; muOS/Knulli/Android run mgba → cross-lane orphan, flagged
-  #   fleet-wide. GG/SMS/MD=picodrive matches LodorOS-my355/Knulli; muOS runs
+  #   GBA=mgba is now the FLEET STANDARD (Decisions/2026-07-13-gba-fleet-mgba.md): LodorOS,
+  #   muOS, Knulli and Android all run mgba, so GBA states finally sync cross-lane. NextUI
+  #   builds mgba itself (CORES+= mgba) and ships it in MGBA.pak/SGB.pak; the Lodor-NextUI
+  #   GBA.pak overlay (emus/GBA.pak, staged below) makes the (GBA) tag launch that bundled
+  #   mgba so the on-device state format matches this gba=mgba:GBA-mgba manifest entry.
+  #   (The gpsp era was the cross-lane orphan.) GG/SMS/MD=picodrive matches LodorOS-my355/Knulli; muOS runs
   #   genesis_plus_gx → that arm64 split is muOS-#11's flag.
   #   PSX/N64 (#14/#5/#6): NOT emitted for NextUI. NextUI's PSX (pcsx_rearmed) and N64
   #   (mupen64plus_next) core assignment through the state-producing minarch path is NOT
@@ -80,14 +115,14 @@ for PLAT in tg5040 tg5050; do
   #   iff a tg5040/tg5050 check shows those systems run those libretro cores via minarch.
   sh "$MONO/release/mkstatecores.sh" --frontend nextui --arch arm64 --out "$D/statecores.json" \
     nes=fceumm:FC-fceumm gb=gambatte:GB-gambatte gbc=gambatte:GBC-gambatte \
-    gba=gpsp:GBA-gpsp gamegear=picodrive:GG-picodrive \
+    gba=mgba:GBA-mgba gamegear=picodrive:GG-picodrive \
     mastersystem=picodrive:SMS-picodrive genesis=picodrive:MD-picodrive \
     snes=snes9x:SFC-snes9x >&2 || { echo "nextui statecores emit failed" >&2; exit 1; }
   # D8 whitelist (fix #2 — the fleet-UNIFORM class list; identical on every lane).
   sh "$MONO/release/mkstatecompat.sh" --out "$D/state-compat.json" \
     fceumm:armhf,arm64 gambatte:armhf,arm64 picodrive:armhf,arm64 \
     gpsp:armhf gpsp:arm64 snes9x2005_plus:armhf snes9x2005_plus:arm64 \
-    snes9x:arm64 mgba:arm64 genesis_plus_gx:arm64 >&2 \
+    snes9x:arm64 mgba:armhf,arm64 genesis_plus_gx:arm64 >&2 \
     || { echo "nextui statecompat emit failed" >&2; exit 1; }
   cp "$ASSETS/bin/7zz" "$D/bin/7zz"
   # arm64 host-render tools. The MERGED pak now needs minui-keyboard too (onboarding text entry) —
@@ -102,7 +137,7 @@ for PLAT in tg5040 tg5050; do
   cp "$TSBIN/tailscale"  "$D/bin/tailscale/tailscale"
   # standalone SDL QR helper (host rendering only; drawn in-pak, no NextUI fork).
   cp "$QRBIN_OUT" "$D/bin/$PLAT/lodor-qr"
-  chmod +x "$D/launch.sh" "$D/lodor-sync" "$D/bin/romm-run" "$D/bin/romm-syncd" \
+  chmod +x "$D/launch.sh" "$D/lodor-sync" "$D/lodor-wizard" "$D/lodor-fbhelper" "$D/bin/romm-run" "$D/bin/romm-syncd" \
            "$D/bin/7zz" "$D/bin/$PLAT/minui-list" "$D/bin/$PLAT/minui-presenter" \
            "$D/bin/$PLAT/minui-keyboard" "$D/bin/tailscale/tailscaled" \
            "$D/bin/tailscale/tailscale" "$D/bin/$PLAT/lodor-qr"
@@ -128,6 +163,31 @@ for PLAT in tg5040 tg5050; do
   mkdir -p "$C"
   cp "$PAKSRC/ctpak/launch.sh" "$C/launch.sh"
   chmod +x "$C/launch.sh"
+
+  # ---- GBA=mgba OVERLAY (Decisions/2026-07-13-gba-fleet-mgba.md) — ships ON THE CARD ----
+  # NextUI resolves Emus/<plat>/<TAG>.pak; the (GBA) folder tag -> TAG=GBA. This overlay lands
+  # as Emus/<plat>/GBA.pak and OVERRIDES NextUI stock GBA.pak (=gpsp) so the GBA tag launches
+  # mgba. DATA-INTEGRITY INVARIANT: the statecores manifest above pins gba=mgba:GBA-mgba, so the
+  # device MUST run mgba or it uploads gpsp-format states tagged mgba and corrupts the fleet.
+  # launch.sh is structurally identical to NextUI MGBA.pak (EMU_EXE=mgba, CORES_PATH=self);
+  # minarch writes states to {TAG}-{core} = GBA-mgba, matching the manifest key. Zero NextUI fork.
+  G="$OUT/Emus/$PLAT/GBA.pak"
+  mkdir -p "$G"
+  cp "$EMUSRC/GBA.pak/launch.sh"  "$G/launch.sh"
+  cp "$EMUSRC/GBA.pak/default.cfg" "$G/default.cfg"
+  chmod +x "$G/launch.sh"
+  # Bundle NextUI OWN ABI-matched mgba core (not the mgba-cert binary) so GBA.pak is
+  # self-contained like MGBA.pak. mGBA is a hard Lodor dependency: if MGBACORE is
+  # unset/missing we FATAL (below) rather than ship a card with broken GBA save-state sync.
+  if [ -n "$MGBACORE" ] && [ -f "$MGBACORE" ]; then
+    file "$MGBACORE" | grep -q aarch64 || { echo "FATAL: MGBACORE is not arm64: $MGBACORE"; exit 1; }
+    cp "$MGBACORE" "$G/mgba_libretro.so"
+  else
+    echo "FATAL: MGBACORE unset/missing ($MGBACORE) — mGBA is a hard Lodor dependency:" >&2
+    echo "       GBA save-STATE sync (the sync moat) is only deterministic on mgba; provide" >&2
+    echo "       NextUI ABI-matched mgba_libretro.so (default under lodor-nextui-stage)." >&2
+    exit 1
+  fi
 done
 
 # One shared Roms folder serves both platforms (same SD card layout).

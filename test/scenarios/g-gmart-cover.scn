@@ -1,0 +1,19 @@
+# WS-B: the Game Manager game list is drawn via minui-list JSON items — the selected game's
+# engine-written cover (Roms/<Sys>/.media/<on-disk base>.png) fills the screen behind the list.
+desc Game Manager: game list carries the game's cover as a full-screen background (json path)
+config paired
+seeded
+sdfile Roms/Game Boy Advance (GBA)/✘ Zelda.gba
+sdfile+ Roms/Game Boy Advance (GBA)/.media/✘ Zelda.png
+pick 0|Game Manager
+pick 0|Game Boy Advance (GBA)
+pick 0|Zelda.gba
+pick 2|
+expect_exit 0
+# json list drawn, clean display name (marker stripped), selection honoured
+expect_trace LIST[Game Boy Advance (GBA)] rc=0 sel='Zelda.gba' fmt=json
+# the item carries the FULL cover path (basename = on-disk name incl. marker, sans extension)
+expect_trace LISTBG[Game Boy Advance (GBA)] name='Zelda.gba' bg='
+expect_trace /Roms/Game Boy Advance (GBA)/.media/✘ Zelda.png'
+# index mapped back to the REAL on-disk file: the action menu is titled with the raw name
+expect_trace LIST[✘ Zelda.gba]

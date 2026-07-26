@@ -81,6 +81,21 @@ KBBIN="$PAKDIR/bin/$BINPLAT/minui-keyboard"
 MENU_OUT="/tmp/lodor-menu-out"
 MENU_LST="/tmp/lodor-menu-list"
 
+# USER-THEME inheritance (WS-A): every minui-list / minui-presenter draw passes
+# $(ui_theme_args) — the user's own NextUI font + wallpaper when installed, zero flags when
+# not — so Lodor screens match the rest of the device. NEVER passed to $KBBIN (minui-keyboard
+# rejects unknown long options — see lib/ui-theme.sh). Degrades to a no-op if the lib is
+# missing from an old/partial card.
+. "$PAKDIR/lib/ui-theme.sh" 2>/dev/null
+command -v ui_theme_args >/dev/null 2>&1 || ui_theme_args() { :; }
+
+# COVER-ART game lists (WS-B): ui_list_json draws the Game Manager / Search game lists via
+# minui-list's JSON item mode — the selected game's own cover (.media/<base>.png) fills the
+# screen behind the list, the native NextUI launcher pattern. Falls back to the proven text
+# list on ANY failure (see lib/ui-list.sh). Degrades to plain pick() if the lib is missing.
+. "$PAKDIR/lib/ui-list.sh" 2>/dev/null
+command -v ui_list_json >/dev/null 2>&1 || { PICK_IDX=0; ui_list_json() { pick "$1" "$2"; }; }
+
 # --------------------------------------------------------------------------------------------------
 # TAILSCALE (tier-1) — QR sign-in + status, tg5040 / tg5050 only. Host rendering only: the tunnel
 # bring-up + status live in tailscale-lib.sh (sourced via romm-sync-lib.sh); the engine owns all RomM
@@ -227,19 +242,21 @@ do_ts_reconnect() {
 		connected)   ui_msg_timed "Reconnected." 5 ;;
 		no-login)    ui_msg_timed "No saved Tailscale sign-in. Re-onboard via Setup / Re-pair > Tailscale." 5 ;;
 		not-capable|no-binary) ui_msg_timed "Tailscale is not available on this device." 5 ;;
-		*)           ui_error_ack "Couldn't reconnect - Tailscale didn't reach Running. Check Wi-Fi (details: tailscaled.log)" ;;
+		*)           ui_error_ack "Couldn't reconnect — Tailscale didn't reach Running. Check Wi-Fi (details: tailscaled.log)" ;;
 	esac
 }
 
 ui_msg() {        # persistent message until replaced/cleared
 	killall minui-presenter >/dev/null 2>&1 || true
-	[ -x "$PRESBIN" ] && "$PRESBIN" --message "$1" --timeout -1 >/dev/null 2>&1 &
+	# shellcheck disable=SC2046  # ui_theme_args: additive theme flags, deliberately word-split
+	[ -x "$PRESBIN" ] && "$PRESBIN" $(ui_theme_args) --message "$1" --timeout -1 >/dev/null 2>&1 &
 	log "msg: $1"
 }
 ui_msg_timed() {  # blocking message for N seconds (default 3)
 	killall minui-presenter >/dev/null 2>&1 || true
 	log "msg: $1"
-	[ -x "$PRESBIN" ] && "$PRESBIN" --message "$1" --timeout "${2:-3}" >/dev/null 2>&1
+	# shellcheck disable=SC2046  # ui_theme_args: additive theme flags, deliberately word-split
+	[ -x "$PRESBIN" ] && "$PRESBIN" $(ui_theme_args) --message "$1" --timeout "${2:-3}" >/dev/null 2>&1
 }
 ui_clear() { killall minui-presenter >/dev/null 2>&1 || true; }
 
@@ -254,13 +271,15 @@ ui_error_ack() {
 		ERR_LST="/tmp/lodor-error-list"
 		printf '%s\n' "$1" > "$ERR_LST"
 		killall minui-presenter >/dev/null 2>&1 || true
-		"$LISTBIN" --disable-auto-sleep --file "$ERR_LST" --format text \
-			--title "Lodor - problem" --confirm-text "OK" --cancel-text "BACK" \
+		# shellcheck disable=SC2046  # ui_theme_args: additive theme flags, deliberately word-split
+		"$LISTBIN" $(ui_theme_args) --disable-auto-sleep --file "$ERR_LST" --format text \
+			--title "Lodor — problem" --confirm-text "OK" --cancel-text "BACK" \
 			--write-location /tmp/lodor-error-out >/dev/null 2>&1
 		case $? in 0|2|3) return 0 ;; esac   # dismissed; a render failure falls through
 	fi
 	killall minui-presenter >/dev/null 2>&1 || true
-	[ -x "$PRESBIN" ] && "$PRESBIN" --message "$1" --timeout 4 >/dev/null 2>&1
+	# shellcheck disable=SC2046  # ui_theme_args: additive theme flags, deliberately word-split
+	[ -x "$PRESBIN" ] && "$PRESBIN" $(ui_theme_args) --message "$1" --timeout 4 >/dev/null 2>&1
 	return 0
 }
 
@@ -509,16 +528,16 @@ ensure_mirror_mode() {
 			case "$PICK_VAL" in
 				"Mix them into"*)
 					if set_mirror_mode merge; then
-						ui_msg_timed "RomM games will mix into your folders. Run Refresh library to tidy up the old ones - your own files are never modified." 5
+						ui_msg_timed "RomM games will mix into your folders. Run Refresh library to tidy up the old ones — your own files are never modified." 5
 					else
-						ui_error_ack "Couldn't save the setting - check the SD card"
+						ui_error_ack "Couldn't save the setting — check the SD card"
 					fi
 					;;
 				"Keep them"*)
 					if set_mirror_mode separate; then
 						ui_msg_timed "RomM games stay in their own folders." 3
 					else
-						ui_error_ack "Couldn't save the setting - check the SD card"
+						ui_error_ack "Couldn't save the setting — check the SD card"
 					fi
 					;;
 			esac
@@ -549,7 +568,7 @@ toggle_fetch_covers() {
 			ui_msg_timed "Only downloaded games fetch box art now. Art already on the card is kept." 4
 		fi
 	else
-		ui_error_ack "Couldn't save the setting - check the SD card"
+		ui_error_ack "Couldn't save the setting — check the SD card"
 	fi
 }
 
@@ -610,16 +629,17 @@ active_profile_label() {
 # 103 = busy (another sync holds the mutex — never a Wi-Fi claim, it clears on its own). An
 # UNKNOWN rc never claims "check Wi-Fi" — it says so and points at the log.
 diagnose() {
-	if   [ ! -x "$SYNC_BIN" ];                 then echo "Lodor engine missing - reinstall from the Pak Store"
-	elif [ "${1:-1}" = 101 ];                  then echo "Lodor is broken on this card - reinstall it from the Pak Store"
-	elif [ "${1:-1}" = 103 ];                  then echo "Another sync is running - try again shortly"
-	elif ! creds_present;                      then echo "Not connected - run Lodor setup, then retry"
-	elif [ "${1:-1}" = 6 ];                    then echo "Pairing expired - run Setup / Re-pair"
-	elif [ "${1:-1}" = 102 ] || [ "${1:-1}" = 2 ]; then echo "Wi-Fi not connected - enable it in NextUI Settings, then retry"
-	elif ! _radio_ready;                       then echo "Wi-Fi not connected - enable it in NextUI Settings, then retry"
-	elif [ "${1:-1}" = 3 ];                    then echo "Couldn't reach your server - check the server or your connection, then retry"
-	elif [ "${1:-1}" = 4 ];                    then echo "Sync finished with errors - some items didn't sync, try again"
-	else                                            echo "Sync failed (rc=${1:-?}) - unknown cause, try again (details in last-sync.log)"
+	if   [ ! -x "$SYNC_BIN" ];                 then echo "Lodor engine missing — reinstall from the Pak Store"
+	elif [ "${1:-1}" = 101 ];                  then echo "Lodor is broken on this card — reinstall it from the Pak Store"
+	elif [ "${1:-1}" = 103 ];                  then echo "Another sync is running — try again shortly"
+	elif ! creds_present;                      then echo "Not connected — run Lodor setup, then retry"
+	elif [ "${1:-1}" = 6 ];                    then echo "Pairing expired — run Setup / Re-pair"
+	elif [ "${1:-1}" = 102 ];                  then echo "Wi-Fi not connected — enable it in NextUI Settings, then retry"
+	elif ! _radio_ready;                       then echo "Wi-Fi not connected — enable it in NextUI Settings, then retry"
+	elif [ "${1:-1}" = 3 ];                    then echo "Couldn't reach your server — check the server or your connection, then retry"
+	elif [ "${1:-1}" = 4 ];                    then echo "Sync finished with errors — some items didn't sync, try again"
+	elif [ "${1:-1}" = 2 ];                    then echo "Lodor hit an internal error (rc=2) — see last-sync.log; if it persists, re-pair via Setup"
+	else                                            echo "Sync failed (rc=${1:-?}) — unknown cause, try again (details in last-sync.log)"
 	fi
 }
 
@@ -628,7 +648,7 @@ trap 'ui_stop; ui_clear; wifi_release' EXIT INT TERM HUP QUIT
 # Engine must exist for BOTH the wizard and the client. (Wi-Fi / pairing checked per-action so the
 # offline-safe Coexist toggle stays reachable with Wi-Fi off.)
 if [ ! -x "$SYNC_BIN" ]; then
-	ui_error_ack "Lodor engine missing - reinstall from the Pak Store"
+	ui_error_ack "Lodor engine missing — reinstall from the Pak Store"
 	exit 1
 fi
 
@@ -654,7 +674,7 @@ kb() {
 	rm -f "$KB_OUT"
 	killall minui-presenter >/dev/null 2>&1 || true
 	if [ ! -x "$KBBIN" ]; then
-		ui_error_ack "On-screen keyboard missing - reinstall the Lodor pak"
+		ui_error_ack "On-screen keyboard missing — reinstall the Lodor pak"
 		return 9
 	fi
 	"$KBBIN" --title "$1" --initial-value "$2" --write-location "$KB_OUT"
@@ -669,10 +689,11 @@ pick() {
 	rm -f "$PICK_OUT"
 	killall minui-presenter >/dev/null 2>&1 || true
 	if [ ! -x "$LISTBIN" ]; then
-		ui_msg_timed "Menu renderer missing - reinstall the Lodor pak" 4
+		ui_msg_timed "Menu renderer missing — reinstall the Lodor pak" 4
 		return 9
 	fi
-	"$LISTBIN" --disable-auto-sleep --file "$PICK_LST" --format text \
+	# shellcheck disable=SC2046  # ui_theme_args: additive theme flags, deliberately word-split
+	"$LISTBIN" $(ui_theme_args) --disable-auto-sleep --file "$PICK_LST" --format text \
 		--title "$1" --confirm-text "$2" --cancel-text "BACK" \
 		--write-location "$PICK_OUT"
 	_prc=$?
@@ -708,16 +729,16 @@ eng_offline() {
 # side-channel data = the label stands. Output -> $LOG; pairing flag noted; returns the engine rc.
 eng_progress() {
 	_eplbl="$1"; shift
-	rm -f /tmp/dl-progress /tmp/romm-phase 2>/dev/null
+	rm -f "$LODOR_PROGRESS_DIR/dl-progress" "$LODOR_PROGRESS_DIR/romm-phase" 2>/dev/null
 	killall minui-presenter >/dev/null 2>&1 || true
 	ui_begin "$_eplbl"
 	"$RUN" "$@" >> "$LOG" 2>&1 &
 	_eppid=$!
 	while kill -0 "$_eppid" 2>/dev/null; do
-		_eppct=""; [ -f /tmp/dl-progress ] && _eppct="$(cat /tmp/dl-progress 2>/dev/null)"
+		_eppct=""; [ -f "$LODOR_PROGRESS_DIR/dl-progress" ] && _eppct="$(cat "$LODOR_PROGRESS_DIR/dl-progress" 2>/dev/null)"
 		case "$_eppct" in
 			''|*[!0-9]*)
-				_epph=""; [ -f /tmp/romm-phase ] && _epph="$(cat /tmp/romm-phase 2>/dev/null)"
+				_epph=""; [ -f "$LODOR_PROGRESS_DIR/romm-phase" ] && _epph="$(cat "$LODOR_PROGRESS_DIR/romm-phase" 2>/dev/null)"
 				[ -n "$_epph" ] && ui_set "$_epph"
 				;;
 			*)
@@ -738,7 +759,7 @@ require_wifi() {
 	if _radio_ready; then return 0; fi
 	ui_msg "Waiting for Wi-Fi..."
 	if _radio_wait 8; then ui_clear; return 0; fi
-	if _have_up; then ui_error_ack "Wi-Fi still connecting - try again in a moment"
+	if _have_up; then ui_error_ack "Wi-Fi still connecting — try again in a moment"
 	else ui_error_ack "Connect Wi-Fi in NextUI Settings first, then re-run Lodor setup"; fi
 	return 1
 }
@@ -747,7 +768,7 @@ require_wifi() {
 # Cloudflare-Access-gated server). The engine preserves it; we never touch or print it.
 cf_note() {
 	if [ -f "$LODOR_CFG_DIR/config.json" ] && grep -q '"cf_access"' "$LODOR_CFG_DIR/config.json" 2>/dev/null; then
-		ui_msg_timed "Cloudflare Access config found - pairing will use it" 3
+		ui_msg_timed "Cloudflare Access config found — pairing will use it" 3
 		log "cf_access present: preserving"
 	fi
 }
@@ -814,7 +835,7 @@ step_server() {
 					# INVALID PORT (#5): never silently discard — loop back into the keyboard
 					# with the typed value preserved, so fixing it is an edit, not a retype.
 					_pval="$KB_VAL"
-					ui_msg_timed "Port must be a number - edit or clear it" 3
+					ui_msg_timed "Port must be a number — edit or clear it" 3
 					;;
 				* ) OB_PORT="$KB_VAL"; break ;;
 			esac
@@ -843,7 +864,7 @@ step_server() {
 		return 0
 	fi
 	_why="$(printf '%s\n' "$NET_OUT" | grep -a 'SETSERVERFAIL' | tail -1)"
-	ui_error_ack "${_why:-Could not save the server address} - check it and retry"
+	ui_error_ack "${_why:-Could not save the server address} — check it and retry"
 	return 2
 }
 
@@ -860,7 +881,7 @@ step_pair() {
 	ui_clear
 	if [ "$NET_RC" = 0 ] && printf '%s' "$NET_OUT" | grep -q 'paired=1'; then
 		if printf '%s' "$NET_OUT" | grep -q 'scopes_ok=0'; then
-			ui_msg_timed "Paired - but the token is missing some sync permissions. Re-generate it in RomM with all scopes." 6
+			ui_msg_timed "Paired — but the token is missing some sync permissions. Re-generate it in RomM with all scopes." 6
 		else
 			ui_msg_timed "Paired." 2
 		fi
@@ -870,8 +891,8 @@ step_pair() {
 	_why="$(printf '%s\n' "$NET_OUT" | grep -a 'PAIRFAIL' | tail -1 | sed 's/^PAIRFAIL /Pairing failed: /')"
 	if [ -z "$_why" ]; then
 		case "$NET_RC" in
-			3) _why="Couldn't reach your server - check the address and Wi-Fi" ;;
-			*) _why="Pairing failed (rc=$NET_RC) - check the code and try again" ;;
+			3) _why="Couldn't reach your server — check the address and Wi-Fi" ;;
+			*) _why="Pairing failed (rc=$NET_RC) — check the code and try again" ;;
 		esac
 	fi
 	ui_error_ack "$_why"
@@ -893,7 +914,7 @@ step_device() {
 		return 0
 	fi
 	_why="$(printf '%s\n' "$NET_OUT" | grep -a 'REGFAIL' | tail -1 | sed 's/^REGFAIL /Register failed: /')"
-	[ -z "$_why" ] && _why="Couldn't register this device (rc=$NET_RC) - try again"
+	[ -z "$_why" ] && _why="Couldn't register this device (rc=$NET_RC) — try again"
 	ui_error_ack "$_why"
 	return 2
 }
@@ -1012,7 +1033,7 @@ do_check_updates() {
 	run_net --check-update
 	_url="$(printf '%s\n' "$NET_OUT" | grep -a '^RESULT update=' | tail -1)"
 	if [ "$NET_RC" != 0 ] || [ -z "$_url" ]; then
-		ui_error_ack "Couldn't reach the update server - this check needs internet, not just your RomM server"
+		ui_error_ack "Couldn't reach the update server — this check needs internet, not just your RomM server"
 		return 1
 	fi
 	stamp_update_state "$_url"
@@ -1107,7 +1128,7 @@ do_push_pending() {
 	_pu="$(printf '%s\n' "$_pl" | sed -n 's/.*pushed=\([0-9][0-9]*\).*/\1/p')"
 	_st="$(printf '%s\n' "$_pl" | sed -n 's/.*stuck=\([0-9][0-9]*\).*/\1/p')"
 	if [ -n "$_st" ] && [ "$_st" -gt 0 ] 2>/dev/null; then
-		ui_msg_timed "Uploaded ${_pu:-0} save(s) - $_st still stuck (kept queued, will retry)" 4
+		ui_msg_timed "Uploaded ${_pu:-0} save(s) — $_st still stuck (kept queued, will retry)" 4
 	else
 		ui_msg_timed "Uploaded ${_pu:-0} save(s)" 3
 	fi
@@ -1128,10 +1149,10 @@ toggle_coexist() {
 	if set_mirror_mode "$_next"; then
 		case "$_next" in
 			separate) ui_msg_timed "RomM games get their own folders. Run Refresh library to apply." 3 ;;
-			merge)    ui_msg_timed "RomM games mix into your folders - your own files are never modified. Run Refresh library to apply." 4 ;;
+			merge)    ui_msg_timed "RomM games mix into your folders — your own files are never modified. Run Refresh library to apply." 4 ;;
 		esac
 	else
-		ui_error_ack "Couldn't save the setting - check the SD card"
+		ui_error_ack "Couldn't save the setting — check the SD card"
 	fi
 }
 
@@ -1177,18 +1198,18 @@ do_uninstall_lodor() {
 	if [ "$_un_ok" = 1 ]; then
 		ui_msg_timed "Removed ${_un_n:-0} Lodor file(s) and cleared pairing. Delete Tools/$BINPLAT/Lodor.pak to finish." 6
 	else
-		ui_error_ack "Nothing removed - Lodor's file records were missing. Run Refresh library once, then retry."
+		ui_error_ack "Nothing removed — Lodor's file records were missing. Run Refresh library once, then retry."
 	fi
 	return 0
 }
 
 _require_online() {   # creds + a usable radio, or an honest dismissable error + non-zero. Used by net actions.
-	if ! creds_present; then ui_error_ack "Not connected - run Lodor setup, then retry"; return 2; fi
+	if ! creds_present; then ui_error_ack "Not connected — run Lodor setup, then retry"; return 2; fi
 	if ! _radio_ready; then
 		ui_msg "Waiting for Wi-Fi..."
 		if ! _radio_wait 8; then
-			if _have_up; then ui_error_ack "Wi-Fi still connecting - try again in a moment"
-			else ui_error_ack "Wi-Fi not connected - enable it in NextUI Settings, then retry"; fi
+			if _have_up; then ui_error_ack "Wi-Fi still connecting — try again in a moment"
+			else ui_error_ack "Wi-Fi not connected — enable it in NextUI Settings, then retry"; fi
 			return 1
 		fi
 	fi
@@ -1236,7 +1257,8 @@ do_sync_feed() {        # --sync-feed: read-only list of recent cross-device sav
 	done
 	if [ -x "$LISTBIN" ]; then
 		killall minui-presenter >/dev/null 2>&1 || true
-		"$LISTBIN" --disable-auto-sleep --file "$FEED_LST" --format text \
+		# shellcheck disable=SC2046  # ui_theme_args: additive theme flags, deliberately word-split
+		"$LISTBIN" $(ui_theme_args) --disable-auto-sleep --file "$FEED_LST" --format text \
 			--title "Recent activity" --confirm-text " " --cancel-text "BACK" \
 			--write-location /tmp/lodor-feed-out >/dev/null 2>&1
 	fi
@@ -1249,10 +1271,10 @@ do_switch_user() {      # --list-profiles: pick an already-paired profile -> wri
 	# no network. ADDING a new user needs a typed pair code -> that is now done in-pak via the
 	# "Setup / Re-pair" menu entry (the onboarding wizard), so here we direct the user there.
 	lodor_migrate_cfg
-	if ! creds_present; then ui_error_ack "Not connected - run Lodor setup, then retry"; return 2; fi
+	if ! creds_present; then ui_error_ack "Not connected — run Lodor setup, then retry"; return 2; fi
 	profiles="$("$RUN" --list-profiles 2>/dev/null | awk -F'\t' 'NF>=2')"
 	[ -z "$profiles" ] && profiles="$(BASE_PATH="$SDCARD" SDCARD_PATH="$SDCARD" PLATFORM="$PLAT" LODOR_PAK_DIR="$PAKDIR" sh -c "cd '$LODOR_CFG_DIR' 2>/dev/null && '$SYNC_BIN' --list-profiles" 2>/dev/null | awk -F'\t' 'NF>=2')"
-	if [ -z "$profiles" ]; then ui_msg_timed "No profiles found - pair via Setup / Re-pair" 3; return 0; fi
+	if [ -z "$profiles" ]; then ui_msg_timed "No profiles found — pair via Setup / Re-pair" 3; return 0; fi
 	# --list-profiles: "<active>\t<label>\t<hastoken>\t<hasdevice>". Offer only signed-in (hastoken=1)
 	# profiles to switch to; an unpaired row would need a pair code (use Setup / Re-pair for that).
 	U_LST="/tmp/lodor-user-list"; U_IDS="/tmp/lodor-user-ids"; U_OUT="/tmp/lodor-user-out"
@@ -1264,11 +1286,12 @@ do_switch_user() {      # --list-profiles: pick an already-paired profile -> wri
 		printf '%s\n' "$label$_mark" >> "$U_LST"
 		printf '%s\n' "$label" >> "$U_IDS"
 	done
-	if [ ! -s "$U_LST" ]; then ui_msg_timed "Only one signed-in profile - add more via Setup / Re-pair" 3; return 0; fi
-	[ -x "$LISTBIN" ] || { ui_msg_timed "Switch User needs the menu renderer (missing)" 3; return 0; }
+	if [ ! -s "$U_LST" ]; then ui_msg_timed "Only one signed-in profile — add more via Setup / Re-pair" 3; return 0; fi
+	[ -x "$LISTBIN" ] || { ui_msg_timed "Switch user needs the menu renderer (missing)" 3; return 0; }
 	killall minui-presenter >/dev/null 2>&1 || true
-	"$LISTBIN" --disable-auto-sleep --file "$U_LST" --format text \
-		--title "Switch User" --confirm-text "USE" --cancel-text "BACK" \
+	# shellcheck disable=SC2046  # ui_theme_args: additive theme flags, deliberately word-split
+	"$LISTBIN" $(ui_theme_args) --disable-auto-sleep --file "$U_LST" --format text \
+		--title "Switch user" --confirm-text "USE" --cancel-text "BACK" \
 		--write-location "$U_OUT"
 	urc=$?; usel="$(cat "$U_OUT" 2>/dev/null)"
 	[ "$urc" = 0 ] && [ -n "$usel" ] || return 0
@@ -1281,7 +1304,7 @@ do_switch_user() {      # --list-profiles: pick an already-paired profile -> wri
 		ui_msg_timed "Switched to $ulabel" 2
 		log "switch-user -> $ulabel"
 	else
-		ui_error_ack "Couldn't switch profile - check the SD card"
+		ui_error_ack "Couldn't switch profile — check the SD card"
 	fi
 	return 0
 }
@@ -1328,7 +1351,10 @@ maybe_seed_library() {
 #   TWO-LEVEL (system -> game), so each minui-list gets at most one platform's titles — the same
 #   file-backed list widget the stock Wifi.pak scrolls, no argv limits, no paging code.
 #   Downloaded-vs-stub state per game is FREE: the mirror bakes it into the filename (✘ cloud /
-#   ✓ on device), so the list shows it with zero extra stat calls.
+#   ✓ on device) with zero extra stat calls. The cover-art JSON list (WS-B, lib/ui-list.sh)
+#   shows the CLEAN name (marker = browser chrome, stripped for display; selection is by
+#   index) — the text fallback still shows the raw marker-prefixed name because there the
+#   selected TEXT is the path key and must round-trip to the on-disk file.
 #
 #   Actions are each a thin shell over ONE engine capability (host rendering only):
 #     Download now   -> --download (the SAME capability the pre-launch fetch hook shells) then the
@@ -1371,7 +1397,8 @@ gm_details() {      # offline: name / system / state+size / card free space. DIS
 			[ -n "$_free" ] && printf 'Free space on card: %s\n' "$_free"
 		} > "$DET_LST"
 		killall minui-presenter >/dev/null 2>&1 || true
-		"$LISTBIN" --disable-auto-sleep --file "$DET_LST" --format text \
+		# shellcheck disable=SC2046  # ui_theme_args: additive theme flags, deliberately word-split
+		"$LISTBIN" $(ui_theme_args) --disable-auto-sleep --file "$DET_LST" --format text \
 			--title "Details" --confirm-text "OK" --cancel-text "BACK" \
 			--write-location /tmp/lodor-details-out >/dev/null 2>&1
 	else
@@ -1390,7 +1417,7 @@ gm_download() {     # engine --download + offline ✘->✓ reconcile. 0 = path c
 	if [ "$NET_RC" = 0 ] && printf '%s' "$NET_OUT" | grep -q 'downloaded=1' && [ -s "$_p" ]; then
 		# Promote ✘ -> ✓ now (offline rename, carries save + cover). Safe outside the launch window.
 		eng_offline --reconcile "$_p"
-		ui_msg_timed "Downloaded - it's in $_sys in your library" 3
+		ui_msg_timed "Downloaded — it's in $_sys in your library" 3
 		return 0
 	fi
 	if [ "$NET_RC" != 0 ]; then ui_error_ack "$(diagnose "$NET_RC")"
@@ -1399,9 +1426,9 @@ gm_download() {     # engine --download + offline ✘->✓ reconcile. 0 = path c
 		# instead of pointing a device user at a log they can't read.
 		_df="$(printf '%s\n' "$NET_OUT" | grep -a '^DLFAIL' | tail -1)"
 		case "$_df" in
-			*resolve*) ui_error_ack "$_name isn't in your library index - run Refresh library, then retry" ;;
-			*verify*)  ui_error_ack "Download didn't verify - try again" ;;
-			*)         ui_error_ack "Couldn't download $_name - try again" ;;
+			*resolve*) ui_error_ack "$_name isn't in your library index — run Refresh library, then retry" ;;
+			*verify*)  ui_error_ack "Download didn't verify — try again" ;;
+			*)         ui_error_ack "Couldn't download $_name — try again" ;;
 		esac
 	fi
 	return 1
@@ -1412,14 +1439,14 @@ gm_queue_add() {    # offline append to the engine's download-queue.txt (SDCARD-
 	_p="$1"; _rel="${_p#"$SDCARD"/}"
 	_qf="$PAKDIR/download-queue.txt"
 	if [ -f "$_qf" ] && grep -qxF "$_rel" "$_qf" 2>/dev/null; then
-		ui_msg_timed "Already queued - run Download queue from the Lodor menu" 3
+		ui_msg_timed "Already queued — run Download queue from the Lodor menu" 3
 		return 0
 	fi
 	if printf '%s\n' "$_rel" >> "$_qf" 2>/dev/null; then
 		log "queued for download: $_rel"
-		ui_msg_timed "Queued - download it any time from the Lodor menu" 3
+		ui_msg_timed "Queued — download it any time from the Lodor menu" 3
 	else
-		ui_error_ack "Couldn't write the queue - check the SD card"
+		ui_error_ack "Couldn't write the queue — check the SD card"
 	fi
 	return 0
 }
@@ -1434,10 +1461,10 @@ gm_delete() {       # confirm -> engine --evict (offline). 0 = path changed (cal
 	eng_offline --evict "$_p"
 	ui_clear
 	if [ "$NET_RC" = 0 ] && printf '%s' "$NET_OUT" | grep -q 'evicted=1'; then
-		ui_msg_timed "Deleted from card - still in your library to re-download" 3
+		ui_msg_timed "Deleted from card — still in your library to re-download" 3
 		return 0
 	fi
-	ui_error_ack "Couldn't delete $_name - check the SD card"
+	ui_error_ack "Couldn't delete $_name — check the SD card"
 	return 1
 }
 
@@ -1454,15 +1481,15 @@ gm_sync_save() {    # engine --sync-save for this one ROM; honest per-direction 
 	# lie: tailscaled was down, every call failed, the old 0/0 glob said all was well). The
 	# count-glob cases below keep working against an older engine that emits no reason.
 	case "$_ln" in
-		*reason=offline*)  ui_error_ack "Couldn't reach your server - check the server or your connection, then retry"; return 1 ;;
+		*reason=offline*)  ui_error_ack "Couldn't reach your server — check the server or your connection, then retry"; return 1 ;;
 		*reason=resolve*)  ui_msg_timed "This game isn't matched to your server library" 4 ;;
 		*reason=in-sync*)  ui_msg_timed "Save already in sync" 2 ;;
-		*reason=tombstone*) ui_msg_timed "Save was deleted on this device - use Server Saves to bring it back" 3 ;;
+		*reason=tombstone*) ui_msg_timed "Save was deleted on this device — use Server saves to bring it back" 3 ;;
 		*reason=unpushed-local*)
 			if printf '%s' "$_ln" | grep -q 'pushed=1'; then
 				ui_msg_timed "Your newer save was uploaded to the server" 3
 			else
-				ui_error_ack "Your save couldn't upload - it stays safe on this card"
+				ui_error_ack "Your save couldn't upload — it stays safe on this card"
 			fi ;;
 		*reason=no-server-save*)
 			if printf '%s' "$_ln" | grep -q 'pushed=1'; then
@@ -1470,18 +1497,18 @@ gm_sync_save() {    # engine --sync-save for this one ROM; honest per-direction 
 			else
 				ui_msg_timed "No saves for this game yet" 2
 			fi ;;
-		*pulled=1*pushed=1*) ui_msg_timed "Save synced - newer server copy pulled, yours pushed" 3 ;;
+		*pulled=1*pushed=1*) ui_msg_timed "Save synced — newer server copy pulled, yours pushed" 3 ;;
 		*pushed=1*)          ui_msg_timed "Save uploaded to your server" 3 ;;
 		*pulled=1*)          ui_msg_timed "Newer save pulled from your server" 3 ;;
 		*pulled=0*pushed=0*) ui_msg_timed "Save already in sync" 2 ;;
-		*)                   ui_msg_timed "${_ln:-Save sync finished - see last-sync.log}" 3 ;;
+		*)                   ui_msg_timed "${_ln:-Save sync finished — see last-sync.log}" 3 ;;
 	esac
 	# GHOSTS (task #124): the engine appends ghosts=<N> — server save RECORDS whose bytes are
 	# missing/zero. They are already excluded from every pull/restore; surface the count honestly
 	# so "why isn't my old save offered?" has a visible answer.
 	_gh="$(printf '%s\n' "$_ln" | sed -n 's/.*ghosts=\([0-9][0-9]*\).*/\1/p')"
 	if [ -n "$_gh" ] && [ "$_gh" -gt 0 ] 2>/dev/null; then
-		ui_msg_timed "$_gh broken save(s) on server - ignored (no data stored)" 3
+		ui_msg_timed "$_gh broken save(s) on server — ignored (no data stored)" 3
 	fi
 	return 0
 }
@@ -1506,19 +1533,19 @@ gm_server_saves() { # --list-saves picker (ghost-aware) -> confirm -> --restore-
 		[ "$_scur" = "CURRENT" ] && _lbl="$_lbl  (on this device)"
 		# Ghost-aware belt + braces: the engine already hides ghosts (#63, SplitGhosts); if a
 		# 0KB row ever appears anyway, LABEL it unrestorable — selecting it is refused below.
-		[ "$_ssize" = "0KB" ] && _lbl="$_lbl  (empty - can't restore)"
+		[ "$_ssize" = "0KB" ] && _lbl="$_lbl  (empty — can't restore)"
 		printf '%s\n' "$_lbl" >> "$PICK_LST"
 		printf '%s\n' "$_sid" >> "$GM_IDS"
 	done
 	while :; do
-		pick "Server saves - $_name" "RESTORE"; _src=$?
+		pick "Server saves — $_name" "RESTORE"; _src=$?
 		# render fail here degrades to a plain return: the action menu redraw hits the same
 		# renderer and its failure path closes the Game Manager honestly.
 		[ "$_src" = 0 ] || return 0
 		_sel="$PICK_VAL"
 		case "$_sel" in
-			*"(empty - can't restore)")
-				ui_msg_timed "That save has no data on the server - pick another" 3
+			*"(empty — can't restore)")
+				ui_msg_timed "That save has no data on the server — pick another" 3
 				continue ;;
 		esac
 		_ln="$(grep -n -F -x "$_sel" "$PICK_LST" 2>/dev/null | head -1 | cut -d: -f1)"
@@ -1537,17 +1564,17 @@ gm_server_saves() { # --list-saves picker (ghost-aware) -> confirm -> --restore-
 			# A Tool can't safely relaunch the game (that would bypass NextUI's switcher/recents
 			# bookkeeping) — orient the user to the library instead of leaving "now what?".
 			if printf '%s' "$NET_OUT" | grep -q 'staged=[1-9]'; then
-				ui_msg_timed "Save restored - launch it from the library. Your previous save is queued to upload" 4
+				ui_msg_timed "Save restored — launch it from the library. Your previous save is queued to upload" 4
 			else
-				ui_msg_timed "Save restored - launch it from the library" 3
+				ui_msg_timed "Save restored — launch it from the library" 3
 			fi
 		elif printf '%s' "$NET_OUT" | grep -q 'reason=ghost'; then
 			# engine-side refusal (a ghost slipped past the listing): never fake a restore
-			ui_error_ack "That save has no data on the server - can't restore"
+			ui_error_ack "That save has no data on the server — can't restore"
 		elif [ "$NET_RC" != 0 ]; then
 			ui_error_ack "$(diagnose "$NET_RC")"
 		else
-			ui_error_ack "Restore failed - try again"
+			ui_error_ack "Restore failed — try again"
 		fi
 		return 0
 	done
@@ -1566,7 +1593,7 @@ gm_actions() {      # per-game action menu. Returns 9 ONLY on renderer failure (
 		case "$_arc" in
 			0) : ;;
 			2|3) return 0 ;;
-			*) ui_msg_timed "Menu renderer failed - closing Game Manager" 3; return 9 ;;
+			*) ui_msg_timed "Menu renderer failed — closing Game Manager" 3; return 9 ;;
 		esac
 		case "$PICK_VAL" in
 			"Download now")           gm_download "$_gpath" && return 0 ;;   # name flipped ✘->✓: rebuild list
@@ -1579,21 +1606,26 @@ gm_actions() {      # per-game action menu. Returns 9 ONLY on renderer failure (
 	done
 }
 
+GM_PATHS="/tmp/lodor-gm-paths"
+
 gm_games() {        # game picker for one system folder. Returns 9 ONLY on renderer failure.
 	_sys="$1"; _sysdir="$SDCARD/Roms/$_sys"
 	while :; do
-		: > "$PICK_LST"
+		# PICK_LST = raw on-disk names (the text fallback + PICK_VAL contract need them);
+		# GM_PATHS = the parallel full paths ui_list_json derives each cover from (WS-B).
+		: > "$PICK_LST"; : > "$GM_PATHS"
 		find "$_sysdir" -mindepth 1 -maxdepth 1 -type f 2>/dev/null | sort | while IFS= read -r _f; do
 			_b="$(basename "$_f")"
 			case "$_b" in .*|map.txt) continue ;; esac
 			printf '%s\n' "$_b" >> "$PICK_LST"
+			printf '%s\n' "$_f" >> "$GM_PATHS"
 		done
 		if [ ! -s "$PICK_LST" ]; then ui_msg_timed "No games in $_sys yet" 3; return 0; fi
-		pick "$_sys" "MANAGE"; _grc=$?
+		ui_list_json "$_sys" "MANAGE" "$GM_PATHS"; _grc=$?
 		case "$_grc" in
 			0) : ;;
 			2|3) return 0 ;;
-			*) ui_msg_timed "Menu renderer failed - closing Game Manager" 3; return 9 ;;
+			*) ui_msg_timed "Menu renderer failed — closing Game Manager" 3; return 9 ;;
 		esac
 		_gar=0; gm_actions "$_sysdir/$PICK_VAL" || _gar=$?
 		[ "$_gar" = 9 ] && return 9
@@ -1634,14 +1666,19 @@ do_search_library() {
 		if [ ! -s "$PICK_LST" ]; then ui_msg_timed "No games match \"$_q\"" 3; return 0; fi
 		_ttl="Search: $_q"
 		[ "$_trunc" = 200 ] && _ttl="Search: $_q (first 200)"
-		pick "$_ttl" "MANAGE"; _src=$?
+		ui_list_json "$_ttl" "MANAGE" "$SEARCH_IDS"; _src=$?
 		case "$_src" in
 			0) : ;;
 			2|3) return 0 ;;
-			*) ui_msg_timed "Menu renderer failed - closing search" 3; return 9 ;;
+			*) ui_msg_timed "Menu renderer failed — closing search" 3; return 9 ;;
 		esac
-		_ln="$(grep -n -F -x "$PICK_VAL" "$PICK_LST" 2>/dev/null | head -1 | cut -d: -f1)"
-		[ -n "$_ln" ] || return 0
+		# json path returns the 1-based index directly (dup-proof); the text fallback
+		# (PICK_IDX=0) keeps the original first-exact-line mapping.
+		_ln="$PICK_IDX"
+		if [ "$_ln" = 0 ]; then
+			_ln="$(grep -n -F -x "$PICK_VAL" "$PICK_LST" 2>/dev/null | head -1 | cut -d: -f1)"
+		fi
+		[ -n "$_ln" ] && [ "$_ln" != 0 ] || return 0
 		_gp="$(sed -n "${_ln}p" "$SEARCH_IDS" 2>/dev/null)"
 		[ -n "$_gp" ] || return 0
 		_sar=0; gm_actions "$_gp" || _sar=$?
@@ -1663,14 +1700,14 @@ do_game_manager() { # system picker (top level). Browsing is offline-capable; ne
 		done
 		# an empty card = only the search row would remain, and there is nothing to search either
 		if [ "$(count_lines "$PICK_LST")" -le 1 ] 2>/dev/null; then
-			ui_msg_timed "No game library on this card yet - run Refresh library first" 4
+			ui_msg_timed "No game library on this card yet — run Refresh library first" 4
 			return 0
 		fi
 		pick "Game Manager" "OPEN"; _grc=$?
 		case "$_grc" in
 			0) : ;;
 			2|3) return 0 ;;
-			*) ui_msg_timed "Menu renderer failed - closing Game Manager" 3; return 0 ;;
+			*) ui_msg_timed "Menu renderer failed — closing Game Manager" 3; return 0 ;;
 		esac
 		_ggr=0
 		if [ "$PICK_VAL" = "Search library" ]; then do_search_library || _ggr=$?
@@ -1718,10 +1755,10 @@ run_menu() {
 			# PAIRING-EXPIRED banner (task #124): flagged by any engine rc=6 (menu action, hook,
 			# daemon-adjacent paths writing the same flag). Top row, one press into the re-pair
 			# wizard; cleared automatically by the first engine call that succeeds again.
-			[ -f "$PAIR_FLAG" ] && printf '! Pairing expired - re-pair\n'
+			[ -f "$PAIR_FLAG" ] && printf '! Pairing expired — re-pair\n'
 			printf 'Sync now\n'
 			# saves parked offline are never invisible (parity item #2); row only when real
-			[ "$_np" -gt 0 ] 2>/dev/null && printf 'Pending saves (%s) - upload now\n' "$_np"
+			[ "$_np" -gt 0 ] 2>/dev/null && printf 'Pending saves (%s) — upload now\n' "$_np"
 			# lodor#60: wizard-canon refresh rows — incremental (update) vs cover-refetching (full)
 			printf 'Refresh library (update)\n'
 			printf 'Refresh library (full)\n'
@@ -1733,7 +1770,7 @@ run_menu() {
 			printf 'Recent activity\n'
 			# a found update surfaces at the top of the housekeeping block; install happens in
 			# the Pak Store (store lane — Lodor never swaps its own pak on NextUI)
-			[ -n "$_uav" ] && printf 'Update available (%s) - Pak Store\n' "$_uav"
+			[ -n "$_uav" ] && printf 'Update available (%s) — Pak Store\n' "$_uav"
 			printf 'Switch user (%s)\n' "$_ulbl"
 			printf '%s\n' "$_bclbl"
 			printf '%s\n' "$_cxlbl"
@@ -1748,8 +1785,9 @@ run_menu() {
 		} > "$MENU_LST"
 
 		killall minui-presenter >/dev/null 2>&1 || true
-		"$LISTBIN" --disable-auto-sleep --file "$MENU_LST" --format text \
-			--title "Lodor${_free:+ - $_free free}${_lsync:+ - synced $_lsync}" --confirm-text "OPEN" --cancel-text "EXIT" \
+		# shellcheck disable=SC2046  # ui_theme_args: additive theme flags, deliberately word-split
+		"$LISTBIN" $(ui_theme_args) --disable-auto-sleep --file "$MENU_LST" --format text \
+			--title "Lodor${_free:+ — $_free free}${_lsync:+ — synced $_lsync}" --confirm-text "OPEN" --cancel-text "EXIT" \
 			--write-location "$MENU_OUT"
 		lrc=$?
 		case "$lrc" in
@@ -1809,7 +1847,7 @@ if ! creds_present; then
 				printf 'Set up now\n'
 				printf 'Not now\n'
 			} > "$PICK_LST"
-			pick "Lodor - connect to your RomM server" "SELECT"; _wl_rc=$?
+			pick "Lodor — connect to your RomM server" "SELECT"; _wl_rc=$?
 			case "$_wl_rc" in
 				0)
 					case "$PICK_VAL" in
@@ -1879,7 +1917,7 @@ if [ "$needs_wiring" = 1 ]; then
 		done
 	done
 	if [ "$wired_ok" != 1 ]; then
-		ui_error_ack "Couldn't wire auto-sync hooks - check the SD card, then retry"
+		ui_error_ack "Couldn't wire auto-sync hooks — check the SD card, then retry"
 		exit 1
 	fi
 	log "hooks self-installed + verified (first_install=$hooks_first)"
@@ -1923,7 +1961,7 @@ if [ "$GM_MODE" = 1 ]; then
 		do_game_manager
 	else
 		log "minui-list missing - Game Manager cannot draw (root entry)"
-		ui_msg_timed "Game Manager needs the menu renderer - it is missing from Lodor.pak" 4
+		ui_msg_timed "Game Manager needs the menu renderer — it is missing from Lodor.pak" 4
 	fi
 	# B3: the root-entry selection put the GM dummy into NextUI recents/switcher — remove it
 	# (and any Continue dummy) while the launcher is still dead.
@@ -1936,7 +1974,7 @@ if [ -x "$LISTBIN" ]; then
 	run_menu; mrc=$?
 	if [ "$mrc" != 0 ]; then
 		log "minui-list failed to render (rc=$mrc) - degrading to one-shot Sync now"
-		ui_msg_timed "Lodor menu unavailable on this device - running Sync now instead." 4
+		ui_msg_timed "Lodor menu unavailable on this device — running Sync now instead." 4
 		do_sync_now
 	fi
 else

@@ -1,8 +1,16 @@
-desc configured client: B at the menu exits cleanly; hooks self-install on first run
+desc configured client: B at the menu exits cleanly; hooks self-install on first run; user font+wallpaper inherited (WS-A)
 config paired
 seeded
+# theme fixture (WS-A): user font + wallpaper installed -> the menu draw carries both flags
+sdtext .userdata/shared/minuisettings.txt\tfont=1\n
+sdfile+ .system/res/font1.ttf
+sdfile+ .system/res/background.png
 pick 2|
 expect_exit 0
+expect_trace font-default=
+expect_trace background-image=
+expect_trace font1.ttf
+expect_trace background.png
 expect_file .userdata/tg5040/.hooks/pre-launch.d/10-lodor-fetch.sync.sh
 expect_file .userdata/tg5040/.hooks/post-launch.d/90-lodor-pushsave.sh
 expect_file .userdata/tg5040/.hooks/boot.d/10-lodor.sh

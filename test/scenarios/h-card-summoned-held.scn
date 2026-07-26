@@ -1,0 +1,20 @@
+# ALWAYS-SHOW, no-news leg (launch-card-v2, 2026-07-11 — this file previously tested
+# hold-to-summon, REMOVED: NextUI's busybox ships no `timeout` binary so the bounded evdev
+# probe could never fire; the 2026-07-11 flash test logged "evprobe: no timeout binary ->
+# skip" on every launch). The replacement contract it pins: even with ZERO news
+# (LOCAL=current, nothing unseen) the FULL card still shows — the wizard is invoked
+# --summoned, never in the dead smart mode, and no evdev probe runs at all.
+desc fetch hook: LOCAL=current (no news) -> full card (--summoned) still shows, no evprobe
+invoke prehook
+config paired
+romarg Roms/Game Boy Advance (GBA)/✓ Zelda.gba
+sdfile+ Roms/Game Boy Advance (GBA)/✓ Zelda.gba
+engine 0|101\t2026-07-01 10:00\tBrick\t32KB\tCURRENT\nLOCAL=current
+wizard 0|LAUNCHCARD mode=summoned shown=1 action=play evicted=0
+expect_exit 0
+expect_trace ENGINE --list-saves
+expect_trace WIZARD --launch-card --summoned
+expect_trace ✓ Zelda.gba => rc=0
+expect_trace_absent LIST[
+expect_trace_absent evprobe
+expect_log local=current action=card

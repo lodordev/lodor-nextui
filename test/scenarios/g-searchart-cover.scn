@@ -1,0 +1,23 @@
+# WS-B on Search: results are json items with per-game covers; the selected index maps back
+# through SEARCH_IDS (dup-proof), not the display-text grep. Result order is the sorted find:
+# GBA Zelda (has cover) = index 0, SFC Zelda Link (no cover) = index 1 — selecting index 1
+# must open the SFC file's action menu.
+desc Search results: covers behind the list; json index maps through SEARCH_IDS
+config paired
+seeded
+sdfile Roms/Game Boy Advance (GBA)/✘ Zelda.gba
+sdfile+ Roms/Game Boy Advance (GBA)/.media/✘ Zelda.png
+sdfile+ Roms/Super Nintendo (SFC)/✓ Zelda Link.sfc
+pick 0|Search library
+kb 0|zelda
+pick 0|Zelda Link.sfc  -  Super Nintendo (SFC)
+pick 0|Details
+pick 2|
+expect_exit 0
+expect_trace LIST[Search: zelda] rc=0 sel='Zelda Link.sfc  -  Super Nintendo (SFC)' fmt=json
+# the covered result carries its cover; display name is the clean "name  -  system" composite
+expect_trace LISTBG[Search: zelda] name='Zelda.gba  -  Game Boy Advance (GBA)' bg='
+expect_trace /Roms/Game Boy Advance (GBA)/.media/✘ Zelda.png'
+# index 1 -> SEARCH_IDS line 2 -> the SFC game's action menu (raw on-disk title)
+expect_trace LIST[✓ Zelda Link.sfc]
+expect_trace LIST[Details]

@@ -11,4 +11,4 @@ kb 2|
 pick 2|
 expect_exit 0
 expect_config_lacks token
-expect_log err: Couldn't reach your server - check the address and Wi-Fi
+expect_log err: Couldn't reach your server — check the address and Wi-Fi

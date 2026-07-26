@@ -10,7 +10,7 @@ pick 0|Verify TLS certificate (recommended)
 engine 0|RESULT server_set=1
 kb 2|
 expect_exit 0
-expect_trace PRES timeout=3 msg='Port must be a number - edit or clear it'
+expect_trace PRES timeout=3 msg='Port must be a number — edit or clear it'
 expect_trace KB[Port (leave blank for default)] init='80a0'
 expect_trace ENGINE --set-server https://romm.example.com --port 8080 -> rc=0
 expect_config_has "root_uri": "https://romm.example.com"

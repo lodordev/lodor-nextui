@@ -17,7 +17,21 @@ SDCARD="${SDCARD_PATH:-/mnt/SDCARD}"
 PLAT="${PLATFORM:-tg5040}"
 ROMM_PAK_DIR="$SDCARD/Tools/$PLAT/Lodor.pak"
 export LODOR_PAK_DIR="$ROMM_PAK_DIR"
+# RC BLOCKER MITIGATION (A133/tg5040 old-kernel async-preempt vs GC stack-scan): the CGO-free
+# Go engine crashes deterministically in GC scanstack (bad symbol table / unknown caller pc)
+# under SIGURG async preemption on this device kernel. asyncpreemptoff is NOT a bakeable godebug,
+# so disable it in the ENV every engine spawn inherits (this lib is sourced by launch.sh, romm-syncd,
+# and romm-run). Safe on a handheld: lodor-sync workloads allocate/call frequently, so GC/sched
+# safepoints stay plentiful; only a tight call-free loop would miss preemption (none exist here).
+export GODEBUG="${GODEBUG:+$GODEBUG,}asyncpreemptoff=1"
 SYNC_BIN="$ROMM_PAK_DIR/lodor-sync"
+
+# LODOR_TMP: base for runtime scratch (phase label, wifi mutex, etc.), default /tmp — identical
+# on-device. The test harness points it at a per-scenario dir so these files can't bleed across
+# scenarios (flaky-gate fix, shell MED-1). The engine's own progress side-channels use the
+# separate, already-designed LODOR_PROGRESS_DIR; the sim exports both at the same per-scenario dir.
+LODOR_TMP="${LODOR_TMP:-/tmp}"
+LODOR_PROGRESS_DIR="${LODOR_PROGRESS_DIR:-/tmp}"
 
 # --- config home (INSIDE the pak dir) ----------------------------------------
 # Decision 2026-07-10 (fixes #30, REVERSES the 2026-06-30 shared-config decision):
@@ -99,7 +113,7 @@ _wlog() { echo "$(date +'%F %T') pid=$$ $1" >> "$_WIFI_DBG" 2>/dev/null; }
 # NextUI has no guaranteed text presenter for Tool paks, so this is primarily a log/parity sink
 # (/tmp/romm-phase). Callers write a line ONLY when it is true at the moment written; failures
 # replace the in-progress line with a specific honest reason.
-_pset() { echo "$1" > /tmp/romm-phase 2>/dev/null; _wlog "phase: $1"; return 0; }
+_pset() { echo "$1" > "$LODOR_PROGRESS_DIR/romm-phase" 2>/dev/null; _wlog "phase: $1"; return 0; }
 
 # --- link inspection (read-only; never changes radio state) ------------------
 _have_up() { [ "$(cat /sys/class/net/wlan0/operstate 2>/dev/null)" = "up" ]; }
@@ -183,7 +197,7 @@ wifi_ensure_reachable() {
 # --- coordination mutex (NO radio power — serializes transfers only) ---------
 # Keeps the launch hooks, the daemon, and the Tool from running two transfers at once. fg preempts a
 # preemptible (push) holder so a game launch never waits on a background save upload; bg never preempts.
-_WIFI_LOCK="/tmp/romm-wifi.lock"
+_WIFI_LOCK="$LODOR_TMP/romm-wifi.lock"
 _WIFI_STALE=180   # age tiebreak: only consulted when owner liveness is inconclusive (unparseable pid)
 
 # wifi_acquire [mode]   mode: fg = foreground (download / pre-game): preempts a preemptible holder.

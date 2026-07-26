@@ -1,15 +1,16 @@
-# Parity item #1 positive control: a NEWER foreign save (top row not CURRENT) still prompts,
-# titled with the device it came from, and a real pick restores by the mapped save id.
-desc fetch hook: newer foreign save -> picker titled by source device, restore runs
+# Parity item #1 positive control, launch-card-v2 always-show shape: a NEWER foreign save
+# interrupts the launch via the wizard's launch card (shown every launch since 2026-07-11),
+# not a hook-drawn minui-list. Restore/decline live INSIDE the card (engine tests + knulli
+# launchcard-check cover them); the hook only proves the handoff.
+desc fetch hook: newer foreign save -> launch card handoff (card always shows)
 invoke prehook
 config paired
 romarg Roms/Game Boy Advance (GBA)/✓ Zelda.gba
 sdfile+ Roms/Game Boy Advance (GBA)/✓ Zelda.gba
-engine 0|202\t2026-07-02 08:00\tFlip\t33KB\n101\t2026-07-01 10:00\tBrick\t32KB\tCURRENT
-engine 0|RESULT restored=1
-pick 0|2026-07-02 08:00  -  Flip  -  33KB
+engine 0|202\t2026-07-02 08:00\tFlip\t33KB\n101\t2026-07-01 10:00\tBrick\t32KB\tCURRENT\nLOCAL=older
+wizard 0|LAUNCHCARD mode=summoned shown=1 action=play evicted=0
 expect_exit 0
-expect_log newest=foreign action=prompted
-expect_trace LIST[Newer save from Flip — restore?] rc=0
-expect_trace ENGINE --restore-save
-expect_trace 202 -> rc=0
+expect_trace WIZARD --launch-card --summoned
+expect_trace ✓ Zelda.gba => rc=0
+expect_trace_absent LIST[
+expect_log listed=2 local=older action=card

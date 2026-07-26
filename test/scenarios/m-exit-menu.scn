@@ -1,5 +1,7 @@
-desc MENU key at the client menu exits cleanly
+desc MENU key at the client menu exits cleanly; no theme files -> no theme flags (WS-A degrade)
 config paired
 seeded
 pick 3|
 expect_exit 0
+expect_trace_absent font-default=
+expect_trace_absent background-image=

@@ -24,6 +24,13 @@ PLAT="${PLATFORM:-tg5040}"
 PAKDIR="$SDCARD/Tools/$PLAT/Lodor.pak"
 RUN="$PAKDIR/bin/romm-run"
 [ -x "$RUN" ] || exit 0
+# LAUNCH CARD v2 (task launch-card-v2): when lodor-wizard ships in the pak, hook 10 hands
+# every reachable launch to `lodor-wizard --launch-card`, whose SMART probe covers this
+# hook's ENTIRE offer (the same unseen-compatible-state gate, compat=1 known=0) inside the
+# card — running both would prompt twice for the same state. DEFER, don't delete: this hook
+# self-restores as the proven fallback the moment the wizard binary is absent (same
+# keep-the-fallback rationale as the Game Manager this round).
+[ -x "$PAKDIR/lodor-wizard" ] && exit 0
 # Feature-dark fast path: no manifest, no engine spawn, zero launch cost.
 [ -f "$PAKDIR/statecores.json" ] || exit 0
 
@@ -72,7 +79,10 @@ case "$sorigin" in
 esac
 
 slog "states: offer id=$sid from=$sorigin game=$GAME"
-SLST="/tmp/lodor-state-list"; SOUT="/tmp/lodor-state-out"
+# Runtime scratch under LODOR_TMP (default /tmp, device-identical); the test harness points it
+# at a per-scenario dir so these menu files can't bleed across scenarios (flaky-gate, shell MED-1).
+_LTMP="${LODOR_TMP:-/tmp}"
+SLST="$_LTMP/lodor-state-list"; SOUT="$_LTMP/lodor-state-out"
 : > "$SLST"; rm -f "$SOUT"
 printf '%s\n' "Just play" >> "$SLST"
 printf '%s\n' "Continue from that state" >> "$SLST"

@@ -1,0 +1,14 @@
+#!/bin/sh
+# lodor-wizard stub — the scripted LAUNCH CARD (hook 10 calls `--launch-card [--summoned] <rom>`).
+# Queue `wizard`, line format: <rc>|<stdout> (%b-expanded). Traces full argv with a `=>` arrow
+# (distinct from the engine stub's `->`) so scenarios can pin assertions to the WIZARD line
+# alone. No side effects — card behavior (smart silence, sub-views, restores) is the REAL
+# binary's job, covered by engine unit tests + the knulli launchcard-check E2E.
+set -u
+T="${LODOR_SIM_DIR:?}/trace.log"
+line="$(simq wizard)" || { echo "WIZARD $* UNDERRUN (no scripted result)" >> "$T"; exit 45; }
+rc="${line%%|*}"
+out="${line#*|}"; [ "$out" = "$line" ] && out=""
+echo "WIZARD $* => rc=$rc" >> "$T"
+[ -n "$out" ] && printf '%b\n' "$out"
+exit "$rc"

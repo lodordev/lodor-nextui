@@ -1,22 +1,62 @@
 #!/bin/sh
 # minui-list stub — scripted via the `list` queue. Line format: <rc>|<selected text>.
-#   rc=0 writes the selected text to --write-location AND requires it to be an exact line of
-#   the --file list (catches label/dispatch drift between printf'd menus and case patterns).
-#   rc=2 back, rc=3 menu, anything else = render failure — no selection written (real contract).
+#   TEXT mode (--format text): rc=0 writes the selected text to --write-location AND requires
+#   it to be an exact line of the --file list (catches label/dispatch drift between printf'd
+#   menus and case patterns). rc=2 back, rc=3 menu, anything else = render failure — no
+#   selection written (real contract).
+#   JSON mode (--format json --item-key items --write-value state, WS-B): the --file is the
+#   {"items":[...]} document ui_list_json builds (one item per line). rc=0 requires the
+#   scripted text to equal an item NAME exactly and writes {"selected": <0-based index>} to
+#   --write-location — the real binary returns the INDEX, not the name. Every item carrying a
+#   features.background_image is traced as a LISTBG[<title>] line so scenarios can assert the
+#   cover wiring (path + which items got art).
 set -u
 T="${LODOR_SIM_DIR:?}/trace.log"
-wl=""; lf=""; title=""
+wl=""; lf=""; title=""; thm=""; fmt="text"
 while [ $# -gt 0 ]; do
 	case "$1" in
 		--write-location) wl="${2:-}"; shift 2 ;;
 		--file)           lf="${2:-}"; shift 2 ;;
 		--title)          title="${2:-}"; shift 2 ;;
+		--format)         fmt="${2:-}"; shift 2 ;;
+		# theme inheritance (WS-A): record the flags so scenarios can assert presence/absence
+		--font-default)     thm="$thm --font-default=${2:-}"; shift 2 ;;
+		--background-image) thm="$thm --background-image=${2:-}"; shift 2 ;;
 		*) shift ;;
 	esac
 done
 line="$(simq list)" || { echo "LIST[$title] UNDERRUN (no scripted answer)" >> "$T"; exit 42; }
 rc="${line%%|*}"
 sel="${line#*|}"; [ "$sel" = "$line" ] && sel=""
+if [ "$fmt" = "json" ]; then
+	# Trace each covered item, and resolve the scripted selection text -> 0-based index.
+	idx="$(awk -v sel="$sel" -v title="$title" -v trace="$T" '
+		BEGIN { found = -1; n = 0 }
+		/"name":"/ {
+			s = $0
+			sub(/^,?[[:space:]]*\{"name":"/, "", s)
+			name = s
+			if (index(name, "\",") > 0) sub(/",.*$/, "", name)
+			else                        sub(/"\}.*$/, "", name)
+			bg = ""
+			p = index($0, "\"background_image\":\"")
+			if (p > 0) { r = substr($0, p + 20); q = index(r, "\""); bg = substr(r, 1, q - 1) }
+			if (bg != "")
+				printf "LISTBG[%s] name=%c%s%c bg=%c%s%c\n", title, 39, name, 39, 39, bg, 39 >> trace
+			if (name == sel && found < 0) found = n
+			n++
+		}
+		END { print found }' "$lf")"
+	if [ "$rc" = 0 ]; then
+		if [ -z "$idx" ] || [ "$idx" -lt 0 ] 2>/dev/null; then
+			echo "LIST[$title] JSON SELECTION NOT IN ITEMS: '$sel' (file: $(tr '\n' ';' < "$lf" 2>/dev/null))" >> "$T"
+			exit 43
+		fi
+		[ -n "$wl" ] && printf '{"selected": %s}\n' "$idx" > "$wl"
+	fi
+	echo "LIST[$title] rc=$rc sel='$sel' fmt=json$thm" >> "$T"
+	exit "$rc"
+fi
 if [ "$rc" = 0 ]; then
 	if ! grep -qxF "$sel" "$lf" 2>/dev/null; then
 		echo "LIST[$title] SELECTION NOT IN LIST: '$sel' (list: $(tr '\n' ';' < "$lf" 2>/dev/null))" >> "$T"
@@ -24,5 +64,5 @@ if [ "$rc" = 0 ]; then
 	fi
 	[ -n "$wl" ] && printf '%s\n' "$sel" > "$wl"
 fi
-echo "LIST[$title] rc=$rc sel='$sel'" >> "$T"
+echo "LIST[$title] rc=$rc sel='$sel'$thm" >> "$T"
 exit "$rc"

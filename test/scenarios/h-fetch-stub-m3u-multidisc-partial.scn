@@ -1,0 +1,28 @@
+# FALSE-FAILURE REGRESSION (task launch-card-v2, real-device evidence 2026-07-12): a 0-byte
+# cloud-stub ".m3u" for a 4-disc game triggers --download, and the engine's disc-1-first fill
+# reports SUCCESS: `RESULT downloaded=1 discs_total=4 discs_present=1 discs_fetched=1`, rc=0.
+# But the engine writes the populated .m3u to the CANONICAL (marker-stripped) path + disc 1
+# into the dot-hidden per-game folder and LEAVES the launcher-passed "✘ …m3u" stub 0-byte (the
+# ✘→✓ swap is a later mirror-time step). The OLD hook gated success on `[ -s "$HOOK_ROM_PATH" ]`
+# — the ✘ stub — so it read size=0 and showed the scary "Couldn't download… the game screen
+# will fail" error even though disc 1 landed and the game is playable. The FIX reads the engine
+# RESULT: downloaded=1 with discs_present>=1 == SUCCESS. This scenario proves it:
+#   - the hook reports success (STUB_FILLED=1) -> the launch card shows, NO error card
+#   - it does NOT chain --fetch-next-disc in the same launch (lodor#7 one-disc-per-launch)
+#   - the engine did write the canonical playlist beside the (still-empty) marked stub
+desc fetch hook (multi-disc false-failure): downloaded=1 discs_present=1 on a still-empty ✘ .m3u -> SUCCESS, card shows, no error
+invoke prehook
+config paired
+romarg Roms/PlayStation (PS)/✘ Legend of Dragoon, The (USA).m3u
+sdfile Roms/PlayStation (PS)/✘ Legend of Dragoon, The (USA).m3u
+engine 0|RESULT downloaded=1 discs_total=4 discs_present=1 discs_fetched=1
+engine 0|
+wizard 0|LAUNCHCARD mode=summoned shown=1 action=play evicted=0
+expect_exit 0
+expect_trace ENGINE --download
+expect_trace_absent ENGINE --fetch-next-disc
+expect_trace WIZARD --launch-card --summoned
+expect_trace_absent SHOW2 simple text='Couldn't download
+expect_trace_absent SHOW2 simple text='The server had a problem
+expect_file_empty Roms/PlayStation (PS)/✘ Legend of Dragoon, The (USA).m3u
+expect_file_has Roms/PlayStation (PS)/Legend of Dragoon, The (USA).m3u	.Legend of Dragoon, The (USA)/

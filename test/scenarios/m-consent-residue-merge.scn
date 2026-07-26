@@ -6,4 +6,4 @@ pick 0|Mix them into my folders (recommended)
 pick 2|
 expect_exit 0
 expect_file_has Tools/tg5040/Lodor.pak/settings.conf	mirror_mode=merge
-expect_trace PRES timeout=5 msg='RomM games will mix into your folders. Run Refresh library to tidy up the old ones - your own files are never modified.'
+expect_trace PRES timeout=5 msg='RomM games will mix into your folders. Run Refresh library to tidy up the old ones — your own files are never modified.'

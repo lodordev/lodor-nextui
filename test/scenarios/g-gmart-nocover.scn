@@ -1,0 +1,19 @@
+# WS-B degrade (a): a game with no .media cover is a plain {"name":...} item — still listed,
+# no background. Two games so the index->file mapping is proven on a non-zero index
+# (byte sort: "✓ Zelda.gba" < "✘ Alpha.gba", so Alpha is item index 1).
+desc Game Manager: coverless games list plain; json index maps to the right on-disk file
+config paired
+seeded
+sdfile Roms/Game Boy Advance (GBA)/✘ Alpha.gba
+sdfile+ Roms/Game Boy Advance (GBA)/✓ Zelda.gba
+pick 0|Game Manager
+pick 0|Game Boy Advance (GBA)
+pick 0|Alpha.gba
+pick 2|
+expect_exit 0
+expect_trace LIST[Game Boy Advance (GBA)] rc=0 sel='Alpha.gba' fmt=json
+# no cover fixtures -> no item may carry a background
+expect_trace_absent LISTBG
+# index 1 resolved to ✘ Alpha.gba (not the index-0 Zelda): action menu title is the raw name
+expect_trace LIST[✘ Alpha.gba]
+expect_trace_absent LIST[✓ Zelda.gba]

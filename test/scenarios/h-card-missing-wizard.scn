@@ -1,0 +1,17 @@
+# FAIL-SAFE leg 1 (first TrimUI hardware test contract): lodor-wizard missing from the pak
+# -> the hook logs it and the game launches normally (exit 0). No picker fallback, no
+# blocked launch, no dead screen. (The states hook 20 self-restores in this situation —
+# that fallback is its own file, not asserted here.)
+desc fetch hook: wizard binary missing -> skip silently, launch proceeds (fail-safe)
+invoke prehook
+config paired
+no-wizard
+romarg Roms/Game Boy Advance (GBA)/✓ Zelda.gba
+sdfile+ Roms/Game Boy Advance (GBA)/✓ Zelda.gba
+engine 0|202\t2026-07-02 08:00\tFlip\t33KB\nLOCAL=older
+expect_exit 0
+expect_trace ENGINE --list-saves
+expect_trace_absent WIZARD
+expect_trace_absent LIST[
+expect_trace_absent ENGINE --restore-save
+expect_log action=wizard-missing

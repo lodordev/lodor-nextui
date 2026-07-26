@@ -83,7 +83,7 @@ empty_state() {
 # marker -> coexist (RomM)/clean twin) and an unresolvable entry falls through to the next,
 # every decision logged to gm-stderr.log + last-sync.log.
 HEAD_FILE="${SHARED_USERDATA_PATH:-$SD/.userdata/shared}/Lodor/continue-head.txt"
-[ -f "$HEAD_FILE" ] || empty_state "Nothing to continue yet - play something!"
+[ -f "$HEAD_FILE" ] || empty_state "Nothing to continue yet — play something!"
 TAB="$(printf '\t')"
 
 SYNCLOG="$TOOLPAK/last-sync.log"
@@ -158,9 +158,9 @@ while IFS= read -r _hl || [ -n "$_hl" ]; do
 done < "$HEAD_FILE"
 
 if [ -z "$ROM" ]; then
-	[ "$_n" = 0 ] && empty_state "Nothing to continue yet - play something!"
+	[ "$_n" = 0 ] && empty_state "Nothing to continue yet — play something!"
 	ctlog "continue: no head entry resolvable (entries=$_n) -> suggest Sync"
-	empty_state "Continue list is out of date - run Sync in Tools"
+	empty_state "Continue list is out of date — run Sync in Tools"
 fi
 if [ -z "$DISP" ]; then DISP="$(strip_marker "$(basename "$ROM")")"; DISP="${DISP%.*}"; fi
 
@@ -199,7 +199,7 @@ fi
 # the emulator's own load-error screen — stop here with the honest cause instead.
 # The pre-hook just showed the REAL cause on its own splash — don't overwrite it with a
 # guessed one (#2: never "check Wi-Fi" for an unknown cause).
-[ -s "$ROM" ] || empty_state "Couldn't download $DISP - try again (details in last-sync.log)"
+[ -s "$ROM" ] || empty_state "Couldn't download $DISP — try again (details in last-sync.log)"
 
 killall minui-presenter >/dev/null 2>&1 || true
 sh "$EMU" "$ROM"   # CHILD, not exec — the push bracket + scrub below must still run

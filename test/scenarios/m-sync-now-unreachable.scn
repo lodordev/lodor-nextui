@@ -5,5 +5,5 @@ pick 0|Sync now
 pick 2|
 engine 3|
 expect_exit 0
-expect_log err: Couldn't reach your server - check the server or your connection, then retry
-expect_trace LIST[Lodor - problem] rc=2
+expect_log err: Couldn't reach your server — check the server or your connection, then retry
+expect_trace LIST[Lodor — problem] rc=2

@@ -7,9 +7,12 @@ config paired
 romarg Roms/Game Boy Advance (GBA)/✘ Zelda.gba
 sdfile Roms/Game Boy Advance (GBA)/✘ Zelda.gba
 engine 0|RESULT downloaded=1
+engine 3|
+wizard 0|LAUNCHCARD mode=summoned shown=1 action=play evicted=0
 expect_exit 0
 expect_trace ENGINE --download
 expect_trace SHOW2 daemon text='Downloading Zelda…'
-expect_trace SHOW2 TEXT:Downloaded ✓
+expect_trace SHOW2 TEXT:Downloaded
+expect_trace_absent TEXT:Downloaded ✓
 expect_trace SHOW2 PROGRESS:100
 expect_file_has Roms/Game Boy Advance (GBA)/✘ Zelda.gba	DLBYTES

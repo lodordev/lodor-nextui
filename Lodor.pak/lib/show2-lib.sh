@@ -25,7 +25,9 @@
 
 SHOW2_BIN="$(command -v show2.elf 2>/dev/null || true)"
 SHOW2_LEGACY="$(command -v show.elf 2>/dev/null || true)"
-SHOW2_FIFO="/tmp/show2.fifo"
+# LODOR_TMP: runtime scratch base, default /tmp (device-identical). The test harness points
+# it at a per-scenario dir so the FIFO can't bleed across scenarios (flaky-gate fix, shell MED-1).
+SHOW2_FIFO="${LODOR_TMP:-/tmp}/show2.fifo"
 SHOW2_PID=""
 SHOW2_OK=0
 : "${SHOW2_LOGO:=}"

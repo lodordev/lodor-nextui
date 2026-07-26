@@ -7,7 +7,7 @@ sdfile Roms/Game Boy Advance (GBA)/✘ Zelda.gba
 sdfile+ Roms/Super Nintendo (SFC)/✓ Metroid.sfc
 pick 0|Search library
 kb 0|zEl
-pick 0|✘ Zelda.gba  -  Game Boy Advance (GBA)
+pick 0|Zelda.gba  -  Game Boy Advance (GBA)
 pick 0|Details
 pick 2|
 expect_exit 0

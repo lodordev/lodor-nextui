@@ -101,11 +101,12 @@ for s in minui-list minui-keyboard minui-presenter lodor-qr; do
 	cp "$HERE/stubs/$s" "$PAK/bin/tg5040/$s"
 done
 cp "$HERE/stubs/lodor-sync"  "$PAK/lodor-sync"
+cp "$HERE/stubs/lodor-wizard" "$PAK/lodor-wizard"   # launch card (hook 10) - `no-wizard` removes it
 mkdir -p "$PAK/bin"
 cp "$HERE/stubs/romm-run"    "$PAK/bin/romm-run"
 cp "$HERE/stubs/romm-syncd"  "$PAK/bin/romm-syncd"
-for s in simq sleep killall show2.elf; do cp "$HERE/stubs/$s" "$BIN/$s"; done
-chmod +x "$PAK"/bin/tg5040/* "$PAK/lodor-sync" "$PAK"/bin/romm-* "$BIN"/*
+for s in simq sleep killall show2.elf sync; do cp "$HERE/stubs/$s" "$BIN/$s"; done
+chmod +x "$PAK"/bin/tg5040/* "$PAK/lodor-sync" "$PAK/lodor-wizard" "$PAK"/bin/romm-* "$BIN"/*
 
 # ---- defaults ----
 TMO=30
@@ -241,6 +242,8 @@ while IFS= read -r raw || [ -n "$raw" ]; do
 		tsdrv)     printf '%s\n' "$arg" >> "$SIM/tssteps" ;;
 		no-kb)     rm -f "$PAK/bin/tg5040/minui-keyboard" ;;
 		no-list)   rm -f "$PAK/bin/tg5040/minui-list" ;;
+		no-wizard) rm -f "$PAK/lodor-wizard" ;;
+		wizard)    printf '%s\n' "$arg" >> "$SIM/q/wizard.q" ;;
 		config)    seed_config "$arg" ;;
 		oldconfig) # seed a paired config into the PRE-#30 shared home, to drive lodor_migrate_cfg
 			mkdir -p "$OLDCFGDIR"
@@ -277,15 +280,28 @@ OLDEOF
 	esac
 done < "$SCN"
 
-# ---- clean device-global /tmp state the pak scripts touch (device-faithful defaults) ----
+# ---- clean device-global /tmp state the pak scripts still touch at fixed names ----
+# The former cross-scenario bleeders (romm-phase, dl-progress, show2.fifo, romm-wifi.lock,
+# state menus) now live under the per-scenario LODOR_TMP/LODOR_PROGRESS_DIR set below, so they
+# can't collide and don't need clearing here. These remaining names are launch.sh menu/feed/
+# user scratch that are still fixed-path; clear any stale copy a timed-out run left behind.
 rm -rf /tmp/lodor-ts-state /tmp/lodor-qr-state /tmp/lodor-tailscaled.sock \
        /tmp/lodor-menu-out /tmp/lodor-menu-list /tmp/lodor-setup-kb /tmp/lodor-setup-pick \
-       /tmp/lodor-setup-pick-list /tmp/lodor-feed-list /tmp/lodor-feed-out /tmp/lodor-feed.txt \
+       /tmp/lodor-setup-pick-list /tmp/lodor-setup-pick-json /tmp/lodor-setup-pick-jout \
+       /tmp/lodor-gm-paths /tmp/lodor-feed-list /tmp/lodor-feed-out /tmp/lodor-feed.txt \
        /tmp/lodor-user-list /tmp/lodor-user-ids /tmp/lodor-user-out /tmp/lodor-gm-ids \
-       /tmp/lodor-error-list /tmp/lodor-error-out \
-       /tmp/romm-wifi.lock /tmp/romm-phase /tmp/show2.fifo /tmp/dl-progress 2>/dev/null
+       /tmp/lodor-error-list /tmp/lodor-error-out 2>/dev/null
 
 # ---- run ----
+# Per-scenario runtime scratch dir (flaky-gate fix, shell MED-1): the pak scripts + the engine
+# put their transient files (romm-phase, dl-progress, show2.fifo, romm-wifi.lock, state menus)
+# under LODOR_TMP / LODOR_PROGRESS_DIR, both defaulting to /tmp on-device. Pointing them at a
+# UNIQUE per-scenario dir makes cross-scenario bleed impossible — a leftover from a timed-out
+# scenario (a stale show2 daemon holding its FIFO, a stale phase label) lands in a dead dir the
+# next scenario never reads. This replaces the fragile "rm the fixed /tmp names" dance below.
+RUNTMP="$ROOT/tmp"; mkdir -p "$RUNTMP"
+export LODOR_TMP="$RUNTMP"
+export LODOR_PROGRESS_DIR="$RUNTMP"
 export LODOR_SIM_DIR="$SIM"
 export LODOR_TEST_LIB="$HERE/testlib.sh"
 export SDCARD_PATH="$SD"
